@@ -8,6 +8,7 @@ import { errorHandler } from './middleware/errorHandler.js'
 import { healthRouter } from './routes/health.js'
 import { authRouter } from './routes/auth.js'
 import { userRouter } from './routes/users.js'
+import organizationRouter from './routes/organizations.js'
 import { openApiSpec } from './config/openapi.js'
 
 export function createApp(): Express {
@@ -33,6 +34,7 @@ export function createApp(): Express {
   app.use('/health', healthRouter)
   app.use('/api/auth', authRouter)
   app.use('/api/users', userRouter)
+  app.use('/api/organizations', organizationRouter)
 
   // Error handling
   app.use(errorHandler)
