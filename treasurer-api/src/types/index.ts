@@ -19,3 +19,20 @@ export interface JwtPayload {
   email: string
   role: string
 }
+
+export type OrganizationRole = 'OWNER' | 'ADMIN' | 'MEMBER'
+
+export interface OrganizationSummary {
+  id: string
+  name: string
+  role: OrganizationRole
+}
+
+export interface OrganizationMemberInfo {
+  id: string
+  userId: string
+  email: string
+  name: string | null
+  role: OrganizationRole
+  joinedAt: string
+}
