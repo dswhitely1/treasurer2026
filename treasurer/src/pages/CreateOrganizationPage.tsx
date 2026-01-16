@@ -26,7 +26,7 @@ export function CreateOrganizationPage() {
       <Card className="p-6">
         <h1 className="mb-6 text-2xl font-bold text-gray-900">Create Organization</h1>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
           <div>
             <Label htmlFor="name">Organization Name</Label>
             <Input

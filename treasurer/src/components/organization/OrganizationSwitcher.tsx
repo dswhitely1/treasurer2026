@@ -74,7 +74,7 @@ export function OrganizationSwitcher() {
             {organizations.map((org) => (
               <button
                 key={org.id}
-                onClick={() => handleSwitch(org.id)}
+                onClick={() => void handleSwitch(org.id)}
                 className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
               >
                 {org.id === currentOrg.id && (
