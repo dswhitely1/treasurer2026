@@ -14,6 +14,7 @@ import {
   RegisterPage,
   CreateOrganizationPage,
   OrganizationDashboardPage,
+  AccountsPage,
 } from '@/pages'
 
 function App() {
@@ -47,6 +48,16 @@ function App() {
             <ProtectedRoute>
               <RequireOrganization>
                 <OrganizationDashboardPage />
+              </RequireOrganization>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/organizations/:orgId/accounts"
+          element={
+            <ProtectedRoute>
+              <RequireOrganization>
+                <AccountsPage />
               </RequireOrganization>
             </ProtectedRoute>
           }

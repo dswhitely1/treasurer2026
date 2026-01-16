@@ -23,6 +23,7 @@ import {
   leave,
   switchOrg,
 } from '../controllers/organizationController.js'
+import accountRouter from './accounts.js'
 
 const router: RouterType = Router()
 
@@ -65,5 +66,8 @@ router.delete(
   requireOrgRole('OWNER', 'ADMIN'),
   removeMemberHandler
 )
+
+// Account routes (nested under organization)
+router.use('/:orgId/accounts', accountRouter)
 
 export default router

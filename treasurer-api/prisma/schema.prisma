@@ -39,7 +39,8 @@ model Organization {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  members   OrganizationMember[]
+  members  OrganizationMember[]
+  accounts Account[]
 
   @@map("organizations")
 }
@@ -58,4 +59,32 @@ model OrganizationMember {
   @@unique([userId, organizationId])
   @@index([organizationId])
   @@map("organization_members")
+}
+
+enum AccountType {
+  CHECKING
+  SAVINGS
+  CREDIT_CARD
+  CASH
+  INVESTMENT
+  OTHER
+}
+
+model Account {
+  id             String      @id @default(uuid())
+  name           String
+  description    String?
+  institution    String?
+  accountType    AccountType @default(CHECKING) @map("account_type")
+  balance        Decimal     @default(0) @db.Decimal(19, 4)
+  currency       String      @default("USD")
+  isActive       Boolean     @default(true) @map("is_active")
+  organizationId String      @map("organization_id")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("accounts")
 }

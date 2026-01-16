@@ -67,3 +67,20 @@ export interface Organization {
   role: OrganizationRole
   createdAt: string
 }
+
+// Account types
+export type AccountType = 'CHECKING' | 'SAVINGS' | 'CREDIT_CARD' | 'CASH' | 'INVESTMENT' | 'OTHER'
+
+export interface Account {
+  id: string
+  name: string
+  description: string | null
+  institution: string | null
+  accountType: AccountType
+  balance: string
+  currency: string
+  isActive: boolean
+  organizationId: string
+  createdAt: string
+  updatedAt: string
+}
