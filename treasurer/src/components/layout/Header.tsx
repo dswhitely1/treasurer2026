@@ -5,19 +5,23 @@ import {
   selectIsAuthenticated,
   selectCurrentUser,
 } from '@/store/features/authSlice'
+import { clearOrganizations, selectCurrentOrganization } from '@/store/features/organizationSlice'
 import { Button } from '@/components/ui'
+import { OrganizationSwitcher } from '@/components/organization'
 
 /**
- * Application header with auth-aware navigation links.
+ * Application header with auth-aware navigation links and organization switcher.
  */
 export function Header() {
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const isAuthenticated = useAppSelector(selectIsAuthenticated)
   const user = useAppSelector(selectCurrentUser)
+  const currentOrg = useAppSelector(selectCurrentOrganization)
 
   const handleLogout = () => {
     dispatch(logout())
+    dispatch(clearOrganizations())
     navigate('/')
   }
 
@@ -28,7 +32,7 @@ export function Header() {
           Treasurer
         </Link>
 
-        <nav className="flex items-center gap-6">
+        <nav className="flex items-center gap-4">
           <NavLink
             to="/"
             className={({ isActive }) =>
@@ -44,8 +48,9 @@ export function Header() {
 
           {isAuthenticated ? (
             <>
+              <OrganizationSwitcher />
               <NavLink
-                to="/dashboard"
+                to={currentOrg ? `/organizations/${currentOrg.id}/dashboard` : '/organizations/new'}
                 className={({ isActive }) =>
                   `text-sm font-medium transition-colors ${
                     isActive
