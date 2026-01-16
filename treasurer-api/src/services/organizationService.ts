@@ -179,6 +179,19 @@ export async function updateMemberRole(
     throw new AppError('Member not found', 404)
   }
 
+  // Prevent demoting the last owner
+  if (membership.role === 'OWNER' && newRole !== 'OWNER') {
+    const ownerCount = await prisma.organizationMember.count({
+      where: { organizationId: orgId, role: 'OWNER' },
+    })
+    if (ownerCount === 1) {
+      throw new AppError(
+        'Cannot demote the only owner. Transfer ownership to another member first.',
+        400
+      )
+    }
+  }
+
   await prisma.organizationMember.update({
     where: { id: membership.id },
     data: { role: newRole },
@@ -192,6 +205,19 @@ export async function removeMember(orgId: string, targetUserId: string): Promise
 
   if (!membership) {
     throw new AppError('Member not found', 404)
+  }
+
+  // Prevent removing the last owner
+  if (membership.role === 'OWNER') {
+    const ownerCount = await prisma.organizationMember.count({
+      where: { organizationId: orgId, role: 'OWNER' },
+    })
+    if (ownerCount === 1) {
+      throw new AppError(
+        'Cannot remove the only owner. Transfer ownership first or delete the organization.',
+        400
+      )
+    }
   }
 
   await prisma.organizationMember.delete({
