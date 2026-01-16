@@ -1,5 +1,6 @@
 import { api } from '../api'
 import type { LoginInput, RegisterInput } from '../validations/auth'
+import type { OrganizationSummary } from '@/types'
 
 export interface AuthUser {
   id: string
@@ -22,6 +23,8 @@ export interface MeResponse {
   success: boolean
   data: {
     user: AuthUser
+    organizations: OrganizationSummary[]
+    currentOrganization: OrganizationSummary | null
   }
 }
 
