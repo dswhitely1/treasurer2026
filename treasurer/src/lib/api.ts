@@ -1,4 +1,5 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+const TOKEN_KEY = 'treasurer_token'
 
 interface RequestConfig extends RequestInit {
   params?: Record<string, string>
@@ -10,11 +11,37 @@ interface RequestConfig extends RequestInit {
 export class ApiError extends Error {
   constructor(
     public status: number,
-    message: string
+    message: string,
+    public errors?: Record<string, string[]>
   ) {
     super(message)
     this.name = 'ApiError'
   }
+}
+
+/**
+ * Get the stored auth token.
+ */
+export function getAuthToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY)
+}
+
+/**
+ * Set the auth token in storage.
+ */
+export function setAuthToken(token: string | null): void {
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token)
+  } else {
+    localStorage.removeItem(TOKEN_KEY)
+  }
+}
+
+/**
+ * Clear the auth token from storage.
+ */
+export function clearAuthToken(): void {
+  localStorage.removeItem(TOKEN_KEY)
 }
 
 /**
@@ -32,16 +59,41 @@ async function request<T>(
     url += `?${searchParams.toString()}`
   }
 
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(init.headers as Record<string, string>),
+  }
+
+  const token = getAuthToken()
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
   const response = await fetch(url, {
     ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...init.headers,
-    },
+    headers,
   })
 
   if (!response.ok) {
-    throw new ApiError(response.status, `HTTP error! status: ${response.status}`)
+    let errorMessage = `HTTP error! status: ${response.status}`
+    let errors: Record<string, string[]> | undefined
+
+    try {
+      const errorData = (await response.json()) as {
+        message?: string
+        errors?: Record<string, string[]>
+      }
+      if (errorData.message) {
+        errorMessage = errorData.message
+      }
+      if (errorData.errors) {
+        errors = errorData.errors
+      }
+    } catch {
+      // Use default error message if JSON parsing fails
+    }
+
+    throw new ApiError(response.status, errorMessage, errors)
   }
 
   return response.json() as Promise<T>
