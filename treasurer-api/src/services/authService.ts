@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken'
 import { prisma } from '../config/database.js'
 import { env } from '../config/env.js'
 import { AppError } from '../middleware/errorHandler.js'
-import type { JwtPayload } from '../types/index.js'
+import type { JwtPayload, OrganizationSummary } from '../types/index.js'
 
 const SALT_ROUNDS = 12
 
@@ -80,4 +80,61 @@ export async function loginUser(input: LoginInput) {
 function generateToken(userId: string, email: string, role: string): string {
   const payload: JwtPayload = { userId, email, role }
   return jwt.sign(payload, env.JWT_SECRET, { expiresIn: env.JWT_EXPIRES_IN as `${number}d` })
+}
+
+export async function getCurrentUserWithOrgs(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      lastOrganizationId: true,
+      memberships: {
+        include: { organization: true },
+        orderBy: { createdAt: 'asc' },
+      },
+    },
+  })
+
+  if (!user) {
+    throw new AppError('User not found', 404)
+  }
+
+  const organizations: OrganizationSummary[] = user.memberships.map((m) => ({
+    id: m.organization.id,
+    name: m.organization.name,
+    role: m.role as 'OWNER' | 'ADMIN' | 'MEMBER',
+  }))
+
+  let currentOrganization: OrganizationSummary | null = null
+
+  if (user.lastOrganizationId) {
+    currentOrganization = organizations.find((o) => o.id === user.lastOrganizationId) ?? null
+  }
+
+  // If lastOrganizationId is invalid or null, default to first org
+  if (!currentOrganization && organizations.length > 0) {
+    const firstOrg = organizations[0]
+    if (firstOrg) {
+      currentOrganization = firstOrg
+      // Update lastOrganizationId
+      await prisma.user.update({
+        where: { id: userId },
+        data: { lastOrganizationId: firstOrg.id },
+      })
+    }
+  }
+
+  return {
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    },
+    organizations,
+    currentOrganization,
+  }
 }

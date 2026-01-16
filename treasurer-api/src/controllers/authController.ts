@@ -1,5 +1,5 @@
 import type { RequestHandler } from 'express'
-import { registerUser, loginUser } from '../services/authService.js'
+import { registerUser, loginUser, getCurrentUserWithOrgs } from '../services/authService.js'
 import { sendSuccess } from '../utils/response.js'
 import type { RegisterDto, LoginDto } from '../schemas/auth.js'
 
@@ -23,6 +23,11 @@ export const login: RequestHandler = async (req, res, next) => {
   }
 }
 
-export const me: RequestHandler = (req, res) => {
-  sendSuccess(res, { user: req.user })
+export const me: RequestHandler = async (req, res, next) => {
+  try {
+    const result = await getCurrentUserWithOrgs(req.user!.id)
+    sendSuccess(res, result)
+  } catch (error) {
+    next(error)
+  }
 }

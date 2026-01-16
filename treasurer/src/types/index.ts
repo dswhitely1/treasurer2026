@@ -42,3 +42,28 @@ export interface PaginatedResponse<T> {
   pageSize: number
   totalPages: number
 }
+
+// Organization types
+export type OrganizationRole = 'OWNER' | 'ADMIN' | 'MEMBER'
+
+export interface OrganizationSummary {
+  id: string
+  name: string
+  role: OrganizationRole
+}
+
+export interface OrganizationMember {
+  id: string
+  userId: string
+  email: string
+  name: string | null
+  role: OrganizationRole
+  joinedAt: string
+}
+
+export interface Organization {
+  id: string
+  name: string
+  role: OrganizationRole
+  createdAt: string
+}

@@ -4,6 +4,7 @@ import { authApi, type AuthUser } from '@/lib/api/auth'
 import { setAuthToken, clearAuthToken, getAuthToken } from '@/lib/api'
 import type { LoginInput, RegisterInput } from '@/lib/validations/auth'
 import { ApiError } from '@/lib/api'
+import { setOrganizations } from './organizationSlice'
 
 interface AuthState {
   user: AuthUser | null
@@ -28,7 +29,7 @@ const initialState: AuthState = {
  */
 export const initializeAuth = createAsyncThunk(
   'auth/initialize',
-  async (_, { rejectWithValue }) => {
+  async (_, { dispatch, rejectWithValue }) => {
     const token = getAuthToken()
     if (!token) {
       return null
@@ -36,6 +37,10 @@ export const initializeAuth = createAsyncThunk(
 
     try {
       const response = await authApi.getMe()
+      dispatch(setOrganizations({
+        organizations: response.data.organizations,
+        currentOrganization: response.data.currentOrganization,
+      }))
       return { user: response.data.user, token }
     } catch (error) {
       clearAuthToken()
@@ -52,11 +57,17 @@ export const initializeAuth = createAsyncThunk(
  */
 export const login = createAsyncThunk(
   'auth/login',
-  async (credentials: LoginInput, { rejectWithValue }) => {
+  async (credentials: LoginInput, { dispatch, rejectWithValue }) => {
     try {
       const response = await authApi.login(credentials)
       setAuthToken(response.data.token)
-      return response.data
+      // Fetch full user data with organizations
+      const meResponse = await authApi.getMe()
+      dispatch(setOrganizations({
+        organizations: meResponse.data.organizations,
+        currentOrganization: meResponse.data.currentOrganization,
+      }))
+      return { user: meResponse.data.user, token: response.data.token }
     } catch (error) {
       if (error instanceof ApiError) {
         return rejectWithValue(error.message)
@@ -71,10 +82,15 @@ export const login = createAsyncThunk(
  */
 export const register = createAsyncThunk(
   'auth/register',
-  async (data: RegisterInput, { rejectWithValue }) => {
+  async (data: RegisterInput, { dispatch, rejectWithValue }) => {
     try {
       const response = await authApi.register(data)
       setAuthToken(response.data.token)
+      // New users have no organizations yet
+      dispatch(setOrganizations({
+        organizations: [],
+        currentOrganization: null,
+      }))
       return response.data
     } catch (error) {
       if (error instanceof ApiError) {
