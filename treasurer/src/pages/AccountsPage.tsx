@@ -145,3 +145,5 @@ export function AccountsPage() {
     </div>
   )
 }
+
+export default AccountsPage

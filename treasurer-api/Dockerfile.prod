@@ -1,0 +1,68 @@
+# Multi-stage build for optimized production backend
+# Stage 1: Build the application
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Install pnpm and OpenSSL for Prisma
+RUN corepack enable && corepack prepare pnpm@latest --activate \
+    && apk add --no-cache openssl
+
+# Copy package files
+COPY package.json pnpm-lock.yaml ./
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy prisma schema
+COPY prisma ./prisma/
+
+# Generate Prisma client
+RUN pnpm db:generate
+
+# Copy source code
+COPY . .
+
+# Build TypeScript to JavaScript
+RUN pnpm build
+
+# Stage 2: Runtime image with production dependencies
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install pnpm and OpenSSL runtime dependencies
+RUN corepack enable && corepack prepare pnpm@latest --activate \
+    && apk add --no-cache openssl dumb-init
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
+
+# Copy package files from builder
+COPY package.json pnpm-lock.yaml ./
+
+# Install only production dependencies
+RUN pnpm install --frozen-lockfile --prod
+
+# Copy Prisma schema and generated client
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+
+# Copy built application from builder stage
+COPY --from=builder /app/dist ./dist
+
+# Switch to non-root user
+USER nodejs
+
+# Expose port
+EXPOSE 3001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3001/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
+
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["dumb-init", "--"]
+
+# Start the application
+CMD ["node", "dist/index.js"]

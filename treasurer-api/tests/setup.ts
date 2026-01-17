@@ -6,20 +6,16 @@ beforeAll(async () => {
 })
 
 beforeEach(async () => {
-  // Clean up database before each test
-  const tablenames = await prisma.$queryRaw<
-    Array<{ tablename: string }>
-  >`SELECT tablename FROM pg_tables WHERE schemaname='public'`
-
-  for (const { tablename } of tablenames) {
-    if (tablename !== '_prisma_migrations') {
-      try {
-        await prisma.$executeRawUnsafe(`TRUNCATE TABLE "public"."${tablename}" CASCADE;`)
-      } catch {
-        // Table may not exist in test environment
-      }
-    }
-  }
+  // Clean up database before each test in the correct order
+  // Delete in order to respect foreign key constraints
+  await prisma.transactionStatusHistory.deleteMany()
+  await prisma.transactionSplit.deleteMany()
+  await prisma.transaction.deleteMany()
+  await prisma.account.deleteMany()
+  await prisma.category.deleteMany()
+  await prisma.organizationMember.deleteMany()
+  await prisma.organization.deleteMany()
+  await prisma.user.deleteMany()
 })
 
 afterAll(async () => {

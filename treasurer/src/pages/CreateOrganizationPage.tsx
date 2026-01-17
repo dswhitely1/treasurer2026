@@ -52,3 +52,5 @@ export function CreateOrganizationPage() {
     </div>
   )
 }
+
+export default CreateOrganizationPage

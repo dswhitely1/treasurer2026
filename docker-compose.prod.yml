@@ -1,0 +1,102 @@
+# Docker Compose for production-like staging environment
+# Uses optimized production Dockerfiles with security best practices
+
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: treasurer-db-prod
+    environment:
+      POSTGRES_USER: ${DB_USER:-treasurer}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?error}
+      POSTGRES_DB: ${DB_NAME:-treasurer_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      # Use named volume for data persistence
+      - postgres_data_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-treasurer} -d ${DB_NAME:-treasurer_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: always
+    security_opt:
+      - no-new-privileges:true
+
+  api:
+    build:
+      context: ./treasurer-api
+      dockerfile: Dockerfile.prod
+    container_name: treasurer-api-prod
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgresql://${DB_USER:-treasurer}:${DB_PASSWORD:?error}@postgres:5432/${DB_NAME:-treasurer_db}?schema=public
+      JWT_SECRET: ${JWT_SECRET:?error}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      CORS_ORIGIN: ${CORS_ORIGIN:?error}
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: always
+    security_opt:
+      - no-new-privileges:true
+    # Resource limits to prevent runaway container
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  client:
+    build:
+      context: ./treasurer
+      dockerfile: Dockerfile.prod
+    container_name: treasurer-client-prod
+    environment:
+      VITE_APP_TITLE: Treasurer
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:3001/api}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: always
+    security_opt:
+      - no-new-privileges:true
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+volumes:
+  postgres_data_prod:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/treasurer-db

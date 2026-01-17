@@ -1,0 +1,84 @@
+# Docker Compose for local development
+# Includes hot reload via volume mounts and optimized for developer experience
+
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: treasurer-db
+    environment:
+      POSTGRES_USER: treasurer
+      POSTGRES_PASSWORD: treasurer
+      POSTGRES_DB: treasurer_db
+    ports:
+      - "5432:5432"
+    volumes:
+      # Persist data across restarts during development
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U treasurer -d treasurer_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./treasurer-api
+      dockerfile: Dockerfile
+    container_name: treasurer-api
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DATABASE_URL: postgresql://treasurer:treasurer@postgres:5432/treasurer_db?schema=public
+      JWT_SECRET: docker-dev-secret-change-in-production-min-32-chars
+      JWT_EXPIRES_IN: 7d
+      CORS_ORIGIN: http://localhost:3000
+    ports:
+      - "3001:3001"
+    volumes:
+      # Hot reload for source code
+      - ./treasurer-api/src:/app/src
+      # Hot reload for Prisma schema
+      - ./treasurer-api/prisma:/app/prisma
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  client:
+    build:
+      context: ./treasurer
+      dockerfile: Dockerfile
+    container_name: treasurer-client
+    environment:
+      VITE_APP_TITLE: Treasurer
+      VITE_API_URL: http://localhost:3001/api
+    ports:
+      - "3000:3000"
+    volumes:
+      # Hot reload for source code
+      - ./treasurer/src:/app/src
+      # Hot reload for public assets
+      - ./treasurer/public:/app/public
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local

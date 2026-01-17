@@ -13,11 +13,116 @@ import {
   selectTransactionError,
   selectCategories,
 } from '@/store/features/transactionSlice'
+import {
+  selectStatusFilter,
+  selectSelectionCount,
+  clearSelection,
+} from '@/store/features/statusSlice'
 import { selectIsOrgAdmin } from '@/store/features/organizationSlice'
 import { Card, Button } from '@/components/ui'
 import { TransactionCard, CreateTransactionForm, type CreateTransactionData } from '@/components/transactions'
+import {
+  StatusFilterControls,
+  TransactionBulkActions,
+  SelectAllCheckbox,
+  useBulkSelection,
+  useTransactionStatus,
+  useStatusKeyboardShortcuts,
+} from '@/features/status'
 import type { Account, AccountTransaction } from '@/types'
+import type { TransactionStatus, StatusFilterState } from '@/features/status/types'
 import { accountApi } from '@/lib/api/accounts'
+
+/**
+ * Enhanced Transaction Card with status and selection.
+ */
+interface EnhancedTransactionCardProps {
+  transaction: AccountTransaction
+  isSelected: boolean
+  onToggleSelect: (id: string) => void
+  onStatusChange: (id: string, status: TransactionStatus) => void
+  onEdit?: (transaction: AccountTransaction) => void
+  onDelete?: (transaction: AccountTransaction) => void
+  isStatusChanging?: boolean
+}
+
+function EnhancedTransactionCard({
+  transaction,
+  isSelected,
+  onToggleSelect,
+  onStatusChange,
+  onEdit,
+  onDelete,
+  isStatusChanging,
+}: EnhancedTransactionCardProps) {
+  // Default status if not present (for backwards compatibility)
+  const status = (transaction as AccountTransaction & { status?: TransactionStatus }).status || 'UNCLEARED'
+
+  return (
+    <div className="flex items-start gap-3">
+      {/* Selection checkbox */}
+      <div className="pt-4">
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={() => onToggleSelect(transaction.id)}
+          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          aria-label={`Select transaction: ${transaction.description}`}
+        />
+      </div>
+
+      {/* Transaction card */}
+      <div className="flex-1">
+        <TransactionCard
+          transaction={transaction}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
+      </div>
+
+      {/* Status badge - quick status indicator */}
+      <div className="pt-4">
+        <button
+          type="button"
+          onClick={() => {
+            // Cycle through statuses: UNCLEARED -> CLEARED -> UNCLEARED
+            const nextStatus = status === 'UNCLEARED' ? 'CLEARED' : 'UNCLEARED'
+            onStatusChange(transaction.id, nextStatus)
+          }}
+          disabled={isStatusChanging}
+          className={`
+            inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium
+            transition-colors
+            ${status === 'UNCLEARED' ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : ''}
+            ${status === 'CLEARED' ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' : ''}
+            ${status === 'RECONCILED' ? 'bg-green-100 text-green-700' : ''}
+            ${isStatusChanging ? 'opacity-50 cursor-wait' : 'cursor-pointer'}
+            focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1
+          `}
+          title={`Status: ${status}. Click to toggle.`}
+        >
+          {status === 'UNCLEARED' && (
+            <svg className="h-3 w-3" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" />
+            </svg>
+          )}
+          {status === 'CLEARED' && (
+            <svg className="h-3 w-3" viewBox="0 0 16 16" fill="none">
+              <path d="M3 8L6.5 11.5L13 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          )}
+          {status === 'RECONCILED' && (
+            <svg className="h-3 w-3" viewBox="0 0 16 16" fill="none">
+              <path d="M1 8L4 11L9 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              <path d="M6 8L9 11L15 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          )}
+          <span className="sr-only md:not-sr-only">{status.charAt(0) + status.slice(1).toLowerCase()}</span>
+        </button>
+      </div>
+    </div>
+  )
+}
 
 export function TransactionsPage() {
   const { orgId, accountId } = useParams<{ orgId: string; accountId: string }>()
@@ -28,10 +133,40 @@ export function TransactionsPage() {
   const error = useAppSelector(selectTransactionError)
   const categories = useAppSelector(selectCategories)
   const isAdmin = useAppSelector(selectIsOrgAdmin)
+  const statusFilter = useAppSelector(selectStatusFilter)
+  const selectedCount = useAppSelector(selectSelectionCount)
 
   const [account, setAccount] = useState<Account | null>(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [accountError, setAccountError] = useState<string | null>(null)
+  const [statusCounts, setStatusCounts] = useState<Record<TransactionStatus, number>>({
+    UNCLEARED: 0,
+    CLEARED: 0,
+    RECONCILED: 0,
+  })
+
+  // Custom hooks for status management
+  const bulkSelection = useBulkSelection()
+  const { changeStatus, bulkChangeStatus, isChanging, isBulkChanging } = useTransactionStatus({
+    orgId: orgId || '',
+    accountId: accountId || '',
+  })
+
+  // Keyboard shortcuts
+  useStatusKeyboardShortcuts({
+    enabled: selectedCount > 0,
+    onStatusChange: (status) => {
+      if (selectedCount > 0) {
+        void handleBulkStatusChange(status)
+      }
+    },
+    onEscape: () => {
+      dispatch(clearSelection())
+    },
+    onSelectAll: () => {
+      bulkSelection.toggleAll()
+    },
+  })
 
   useEffect(() => {
     if (orgId && accountId) {
@@ -49,6 +184,20 @@ export function TransactionsPage() {
         })
     }
   }, [dispatch, orgId, accountId])
+
+  // Calculate status counts from transactions
+  useEffect(() => {
+    const counts: Record<TransactionStatus, number> = {
+      UNCLEARED: 0,
+      CLEARED: 0,
+      RECONCILED: 0,
+    }
+    transactions.forEach((t) => {
+      const status = (t as AccountTransaction & { status?: TransactionStatus }).status || 'UNCLEARED'
+      counts[status]++
+    })
+    setStatusCounts(counts)
+  }, [transactions])
 
   const handleCategorySearch = useCallback(
     (search: string) => {
@@ -93,6 +242,35 @@ export function TransactionsPage() {
     dispatch(clearTransactionError())
   }
 
+  const handleStatusChange = async (transactionId: string, newStatus: TransactionStatus) => {
+    const transaction = transactions.find((t) => t.id === transactionId)
+    if (!transaction) return
+
+    const currentStatus = (transaction as AccountTransaction & { status?: TransactionStatus }).status || 'UNCLEARED'
+    try {
+      await changeStatus(transactionId, newStatus, currentStatus)
+    } catch (err) {
+      console.error('Failed to change status:', err)
+    }
+  }
+
+  const handleBulkStatusChange = async (newStatus: TransactionStatus) => {
+    if (selectedCount === 0) return
+
+    try {
+      await bulkChangeStatus(bulkSelection.selectedIds, newStatus)
+      dispatch(clearSelection())
+    } catch (err) {
+      console.error('Failed to bulk change status:', err)
+    }
+  }
+
+  const handleFilterChange = (filters: StatusFilterState) => {
+    // This would update the filter and refetch transactions
+    // For now, we handle filtering client-side
+    dispatch({ type: 'status/setStatusFilter', payload: filters })
+  }
+
   const formatCurrency = (amount: string | number) => {
     const value = typeof amount === 'string' ? parseFloat(amount) : amount
     return new Intl.NumberFormat('en-US', {
@@ -100,6 +278,15 @@ export function TransactionsPage() {
       currency: 'USD',
     }).format(value)
   }
+
+  // Filter transactions based on status filter
+  const filteredTransactions = transactions.filter((t) => {
+    const status = (t as AccountTransaction & { status?: TransactionStatus }).status || 'UNCLEARED'
+    if (status === 'UNCLEARED' && !statusFilter.uncleared) return false
+    if (status === 'CLEARED' && !statusFilter.cleared) return false
+    if (status === 'RECONCILED' && !statusFilter.reconciled) return false
+    return true
+  })
 
   if (accountError) {
     return (
@@ -121,7 +308,7 @@ export function TransactionsPage() {
           to={`/organizations/${orgId}/accounts`}
           className="text-sm text-blue-600 hover:text-blue-500"
         >
-          &larr; Back to Accounts
+          &#8592; Back to Accounts
         </Link>
       </div>
 
@@ -141,9 +328,14 @@ export function TransactionsPage() {
             </p>
           )}
         </div>
-        {isAdmin && !showCreateForm && (
-          <Button onClick={() => setShowCreateForm(true)}>Add Transaction</Button>
-        )}
+        <div className="flex items-center gap-3">
+          <Link to={`/organizations/${orgId}/accounts/${accountId}/reconcile`}>
+            <Button variant="outline">Reconcile</Button>
+          </Link>
+          {isAdmin && !showCreateForm && (
+            <Button onClick={() => setShowCreateForm(true)}>Add Transaction</Button>
+          )}
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -174,6 +366,23 @@ export function TransactionsPage() {
         </Card>
       </div>
 
+      {/* Status Filter Controls */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <StatusFilterControls
+          filters={statusFilter}
+          onFilterChange={handleFilterChange}
+          counts={statusCounts}
+        />
+        <div className="flex items-center gap-4">
+          <SelectAllCheckbox
+            selectionMode={bulkSelection.selectionMode}
+            onToggle={bulkSelection.toggleAll}
+            totalCount={filteredTransactions.length}
+            selectedCount={selectedCount}
+          />
+        </div>
+      </div>
+
       {/* Create Transaction Form */}
       {showCreateForm && account && (
         <Card className="mb-8 p-6">
@@ -193,13 +402,17 @@ export function TransactionsPage() {
       {/* Transactions List */}
       {isLoading && transactions.length === 0 ? (
         <div className="text-center text-gray-500">Loading transactions...</div>
-      ) : transactions.length === 0 ? (
+      ) : filteredTransactions.length === 0 ? (
         <Card className="p-8 text-center">
-          <h3 className="text-lg font-medium text-gray-900">No transactions yet</h3>
+          <h3 className="text-lg font-medium text-gray-900">
+            {transactions.length === 0 ? 'No transactions yet' : 'No transactions match filters'}
+          </h3>
           <p className="mt-2 text-gray-600">
-            Get started by adding your first transaction.
+            {transactions.length === 0
+              ? 'Get started by adding your first transaction.'
+              : 'Try adjusting your status filters to see more transactions.'}
           </p>
-          {isAdmin && !showCreateForm && (
+          {transactions.length === 0 && isAdmin && !showCreateForm && (
             <Button className="mt-4" onClick={() => setShowCreateForm(true)}>
               Add First Transaction
             </Button>
@@ -207,16 +420,30 @@ export function TransactionsPage() {
         </Card>
       ) : (
         <div className="space-y-4">
-          {transactions.map((transaction) => (
-            <TransactionCard
+          {filteredTransactions.map((transaction) => (
+            <EnhancedTransactionCard
               key={transaction.id}
               transaction={transaction}
+              isSelected={bulkSelection.isSelected(transaction.id)}
+              onToggleSelect={bulkSelection.toggle}
+              onStatusChange={(id, status) => void handleStatusChange(id, status)}
               onEdit={isAdmin ? () => console.log('Edit', transaction) : undefined}
               onDelete={isAdmin ? handleDeleteTransaction : undefined}
+              isStatusChanging={isChanging}
             />
           ))}
         </div>
       )}
+
+      {/* Bulk Actions Toolbar */}
+      <TransactionBulkActions
+        selectedCount={selectedCount}
+        onStatusChange={(status) => void handleBulkStatusChange(status)}
+        onClearSelection={() => dispatch(clearSelection())}
+        isLoading={isBulkChanging}
+      />
     </div>
   )
 }
+
+export default TransactionsPage

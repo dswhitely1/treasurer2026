@@ -72,3 +72,5 @@ export function OrganizationDashboardPage() {
     </div>
   )
 }
+
+export default OrganizationDashboardPage

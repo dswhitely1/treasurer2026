@@ -24,6 +24,9 @@ export interface TransactionInfo {
   feeAmount: string | null
   accountId: string
   destinationAccountId: string | null
+  status: string
+  clearedAt: string | null
+  reconciledAt: string | null
   splits: TransactionSplitInfo[]
   createdAt: string
   updatedAt: string
@@ -38,6 +41,9 @@ interface TransactionWithSplits {
   feeAmount: Prisma.Decimal | null
   accountId: string
   destinationAccountId: string | null
+  status: string
+  clearedAt: Date | null
+  reconciledAt: Date | null
   createdAt: Date
   updatedAt: Date
   splits: Array<{
@@ -61,6 +67,9 @@ function formatTransaction(transaction: TransactionWithSplits): TransactionInfo 
     feeAmount: transaction.feeAmount?.toString() ?? null,
     accountId: transaction.accountId,
     destinationAccountId: transaction.destinationAccountId,
+    status: transaction.status,
+    clearedAt: transaction.clearedAt?.toISOString() ?? null,
+    reconciledAt: transaction.reconciledAt?.toISOString() ?? null,
     splits: transaction.splits.map((split) => ({
       id: split.id,
       amount: split.amount.toString(),
@@ -251,6 +260,7 @@ export async function getAccountTransactions(
     throw new AppError('Account not found', 404)
   }
 
+  // Build where clause
   const where: Prisma.TransactionWhereInput = {
     accountId,
     ...(query.startDate && { date: { gte: new Date(query.startDate) } }),
@@ -265,6 +275,29 @@ export async function getAccountTransactions(
         },
       },
     }),
+  }
+
+  // Add status filtering
+  if (query.status) {
+    where.status = query.status
+  } else if (query.statuses && query.statuses.length > 0) {
+    where.status = { in: query.statuses }
+  }
+
+  // Add clearedAt date range filtering
+  if (query.clearedAfter || query.clearedBefore) {
+    where.clearedAt = {
+      ...(query.clearedAfter && { gte: new Date(query.clearedAfter) }),
+      ...(query.clearedBefore && { lte: new Date(query.clearedBefore) }),
+    }
+  }
+
+  // Add reconciledAt date range filtering
+  if (query.reconciledAfter || query.reconciledBefore) {
+    where.reconciledAt = {
+      ...(query.reconciledAfter && { gte: new Date(query.reconciledAfter) }),
+      ...(query.reconciledBefore && { lte: new Date(query.reconciledBefore) }),
+    }
   }
 
   const [transactions, total] = await Promise.all([

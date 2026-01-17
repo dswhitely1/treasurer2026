@@ -5,7 +5,15 @@ import { BrowserRouter } from 'react-router-dom'
 
 import { store } from '@/store'
 import App from '@/App'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { initWebVitals, logNavigationTiming } from '@/utils/performance'
+import { setupGlobalErrorHandlers } from '@/utils/logger'
 import '@/styles/index.css'
+
+// Initialize observability
+setupGlobalErrorHandlers()
+initWebVitals()
+logNavigationTiming()
 
 const rootElement = document.getElementById('root')
 
@@ -15,10 +23,12 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <Provider store={store}>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </Provider>
+    <ErrorBoundary>
+      <Provider store={store}>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </Provider>
+    </ErrorBoundary>
   </StrictMode>
 )

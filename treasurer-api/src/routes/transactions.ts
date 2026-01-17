@@ -2,6 +2,7 @@ import { Router, type Router as RouterType } from 'express'
 import { authenticate } from '../middleware/auth.js'
 import { requireOrgMembership, requireOrgRole } from '../middleware/organization.js'
 import { validate } from '../middleware/validate.js'
+import { preventReconciledModification } from '../middleware/transactionProtection.js'
 import {
   createTransactionSchema,
   updateTransactionSchema,
@@ -42,6 +43,7 @@ router.patch(
   '/:transactionId',
   validate({ params: transactionIdParamSchema, body: updateTransactionSchema }),
   requireOrgRole('OWNER', 'ADMIN'),
+  preventReconciledModification(),
   update
 )
 
@@ -49,6 +51,7 @@ router.delete(
   '/:transactionId',
   validate({ params: transactionIdParamSchema }),
   requireOrgRole('OWNER', 'ADMIN'),
+  preventReconciledModification(),
   remove
 )
 

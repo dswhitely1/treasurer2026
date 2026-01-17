@@ -1,0 +1,504 @@
+════════════════════════════════════════════════════════════════════════════════
+CI/CD INFRASTRUCTURE - COMPLETE FILE LISTING
+════════════════════════════════════════════════════════════════════════════════
+
+Generated: 2026-01-17
+Project: Treasurer Application
+Location: /home/don/dev/treasurer2026/
+
+════════════════════════════════════════════════════════════════════════════════
+1. GITHUB ACTIONS WORKFLOWS
+════════════════════════════════════════════════════════════════════════════════
+
+.github/workflows/ci.yml
+├─ Purpose: Continuous Integration Pipeline
+├─ Triggers: Push to main, Pull requests
+├─ Jobs:
+│  ├─ Backend: type-check, lint, tests+coverage, build
+│  └─ Frontend: type-check, lint, tests+coverage, build
+├─ Features:
+│  ├─ Parallel job execution
+│  ├─ pnpm dependency caching
+│  ├─ Concurrent run cancellation
+│  ├─ Coverage artifacts (30-day retention)
+│  └─ Build artifacts (7-day retention)
+└─ Documentation: See CI-CD.md section "GitHub Actions Workflows"
+
+.github/workflows/deploy.yml
+├─ Purpose: Automated Docker Image Build and Push
+├─ Triggers: Semantic version tags (v*.*.*)
+├─ Strategy: Matrix build for api and client
+├─ Features:
+│  ├─ Multi-stage Docker builds
+│  ├─ GitHub Container Registry push
+│  ├─ Semantic versioning and SHA tags
+│  ├─ GHA cache optimization
+│  └─ Build and push success summary
+└─ Documentation: See CI-CD.md section "Deploy Workflow"
+
+════════════════════════════════════════════════════════════════════════════════
+2. HUSKY PRE-COMMIT HOOKS
+════════════════════════════════════════════════════════════════════════════════
+
+.husky/pre-commit
+├─ Purpose: Code quality enforcement before commit
+├─ Runs: lint-staged on staged files
+├─ Actions:
+│  ├─ Prettier formatting
+│  ├─ ESLint validation (zero-warnings)
+│  ├─ Auto-fix violations
+│  └─ Prevent commit on failure
+└─ Configuration: .lintstagedrc.js
+
+.husky/pre-push
+├─ Purpose: Type safety before push
+├─ Runs: TypeScript type checking
+├─ Checks:
+│  ├─ treasurer-api: pnpm type-check
+│  ├─ treasurer: pnpm type-check
+│  └─ Prevent push on type errors
+└─ Documentation: See CI-CD.md section "Pre-commit Hooks"
+
+.husky/commit-msg
+├─ Purpose: Enforce commit message format
+├─ Standard: Conventional Commits
+├─ Valid Types:
+│  ├─ feat - New feature
+│  ├─ fix - Bug fix
+│  ├─ docs - Documentation
+│  ├─ style - Code style
+│  ├─ refactor - Refactoring
+│  ├─ perf - Performance
+│  ├─ test - Tests
+│  ├─ chore - Build/dependencies
+│  ├─ ci - CI configuration
+│  └─ build - Build system
+└─ Examples: "feat(auth): add login" | "fix(db): timeout issue"
+
+.lintstagedrc.js
+├─ Purpose: Lint-staged configuration
+├─ Targets:
+│  ├─ **/*.{ts,tsx}: prettier + eslint
+│  ├─ **/*.{css,json}: prettier
+│  └─ Excludes: node_modules, dist
+└─ Documentation: See CI-CD.md section "Pre-commit Hooks"
+
+════════════════════════════════════════════════════════════════════════════════
+3. DOCKER DEVELOPMENT ENVIRONMENT
+════════════════════════════════════════════════════════════════════════════════
+
+docker-compose.dev.yml
+├─ Purpose: Local development environment
+├─ Services:
+│  ├─ postgres:
+│  │  ├─ Image: postgres:16-alpine
+│  │  ├─ Port: 5432
+│  │  ├─ Volume: postgres_data (persistent)
+│  │  └─ Health check: pg_isready
+│  ├─ api:
+│  │  ├─ Build: ./treasurer-api/Dockerfile
+│  │  ├─ Port: 3001
+│  │  ├─ Volumes: src and prisma for hot reload
+│  │  ├─ Health check: curl /health
+│  │  └─ Depends on: postgres (healthy)
+│  └─ client:
+│     ├─ Build: ./treasurer/Dockerfile
+│     ├─ Port: 3000
+│     ├─ Volumes: src for hot reload
+│     ├─ Health check: wget /
+│     └─ Depends on: api
+├─ Features:
+│  ├─ Hot reload via volume mounts
+│  ├─ Auto-restart on failure
+│  ├─ Health checks for all services
+│  └─ Named volume for data persistence
+└─ Usage: docker compose -f docker-compose.dev.yml up
+
+docker-compose.prod.yml
+├─ Purpose: Production-ready Docker Compose
+├─ Configuration:
+│  ├─ Environment: production
+│  ├─ Resource limits: API (1 CPU, 1GB RAM) | Client (1 CPU, 512MB)
+│  ├─ Security: no-new-privileges
+│  └─ Restart: always
+├─ Services: postgres, api, client
+├─ Features:
+│  ├─ Extended health check timeouts
+│  ├─ Resource requests and limits
+│  ├─ Environment variable validation
+│  └─ Named volume for data persistence
+└─ Usage: docker compose -f docker-compose.prod.yml up
+
+treasurer/Dockerfile.prod
+├─ Purpose: Optimized production frontend build
+├─ Stages:
+│  ├─ Builder:
+│  │  ├─ Install dependencies (pnpm)
+│  │  ├─ Copy package files
+│  │  ├─ Copy source code
+│  │  └─ Run: pnpm build
+│  └─ Runtime:
+│     ├─ Base: node:20-alpine
+│     ├─ Install: serve package
+│     ├─ Copy: dist from builder
+│     ├─ Expose: 3000
+│     └─ CMD: serve -s dist
+├─ Features:
+│  ├─ Multi-stage reduces image size
+│  ├─ Health check included
+│  └─ Optimized for production
+└─ Usage: docker build -f Dockerfile.prod -t treasurer-client:latest .
+
+treasurer-api/Dockerfile.prod
+├─ Purpose: Optimized production backend build
+├─ Stages:
+│  ├─ Builder:
+│  │  ├─ Install: pnpm, openssl
+│  │  ├─ Install dependencies
+│  │  ├─ Generate Prisma client
+│  │  ├─ Copy source code
+│  │  └─ Build: tsc
+│  └─ Runtime:
+│     ├─ Base: node:20-alpine
+│     ├─ Create: non-root user (nodejs:1001)
+│     ├─ Install: only production deps
+│     ├─ Copy: dist and Prisma from builder
+│     ├─ Switch: to nodejs user
+│     └─ ENTRYPOINT: dumb-init (signal handling)
+├─ Features:
+│  ├─ Multi-stage reduces image size
+│  ├─ Non-root user execution
+│  ├─ Proper signal handling
+│  ├─ Health check included
+│  └─ Production optimized
+└─ Usage: docker build -f Dockerfile.prod -t treasurer-api:latest .
+
+════════════════════════════════════════════════════════════════════════════════
+4. KUBERNETES MANIFESTS - BASE
+════════════════════════════════════════════════════════════════════════════════
+
+k8s/namespace.yaml
+├─ Purpose: Create Treasurer namespace
+├─ Namespace: treasurer
+└─ Labels: name=treasurer
+
+k8s/configmap.yaml
+├─ Purpose: Application configuration
+├─ Data:
+│  ├─ VITE_APP_TITLE: "Treasurer"
+│  ├─ VITE_API_URL: "http://api.treasurer.svc.cluster.local:3001/api"
+│  ├─ NODE_ENV: "production"
+│  ├─ JWT_EXPIRES_IN: "7d"
+│  ├─ CORS_ORIGIN: "https://treasurer.example.com"
+│  ├─ DB_NAME: "treasurer_db"
+│  ├─ DB_USER: "treasurer"
+│  └─ PORT: "3001"
+└─ Note: Update CORS_ORIGIN for your domain
+
+k8s/secrets.yaml
+├─ Purpose: Template for sensitive data
+├─ Contains:
+│  ├─ JWT_SECRET: (placeholder - update for production)
+│  ├─ DB_PASSWORD: (placeholder - update for production)
+│  └─ ghcr-secret: Docker registry credentials
+└─ IMPORTANT: Replace placeholders before deploying
+
+k8s/postgres.yaml
+├─ Purpose: PostgreSQL database
+├─ Resources:
+│  ├─ PersistentVolumeClaim: postgres-pvc (10Gi)
+│  ├─ StatefulSet:
+│  │  ├─ Replicas: 1
+│  │  ├─ Image: postgres:16-alpine
+│  │  ├─ Requests: 256Mi memory, 250m CPU
+│  │  ├─ Limits: 512Mi memory, 500m CPU
+│  │  └─ Health checks: pg_isready
+│  └─ Service: postgres (headless)
+└─ Documentation: See CI-CD.md section "PostgreSQL StatefulSet"
+
+k8s/api.yaml
+├─ Purpose: Backend deployment and scaling
+├─ Deployment:
+│  ├─ Replicas: 2 (prod: 3)
+│  ├─ Image: ghcr.io/treasurer/api:latest
+│  ├─ Port: 3001
+│  ├─ Requests: 256Mi memory, 250m CPU
+│  ├─ Limits: 512Mi memory, 500m CPU
+│  ├─ Liveness probe: /health endpoint
+│  ├─ Readiness probe: /health endpoint
+│  └─ Security context: non-root, read-only filesystem
+├─ Service: api (ClusterIP)
+├─ HorizontalPodAutoscaler:
+│  ├─ Min replicas: 2
+│  ├─ Max replicas: 5
+│  ├─ CPU threshold: 70%
+│  └─ Memory threshold: 80%
+└─ Documentation: See CI-CD.md section "Backend Deployment"
+
+k8s/client.yaml
+├─ Purpose: Frontend deployment and scaling
+├─ Deployment:
+│  ├─ Replicas: 2 (prod: 3)
+│  ├─ Image: ghcr.io/treasurer/client:latest
+│  ├─ Port: 3000
+│  ├─ Requests: 128Mi memory, 100m CPU
+│  ├─ Limits: 256Mi memory, 200m CPU
+│  ├─ Liveness probe: / endpoint
+│  ├─ Readiness probe: / endpoint
+│  └─ Security context: non-root, read-only filesystem
+├─ Service: client (ClusterIP)
+├─ HorizontalPodAutoscaler:
+│  ├─ Min replicas: 2
+│  ├─ Max replicas: 5
+│  ├─ CPU threshold: 70%
+│  └─ Memory threshold: 80%
+└─ Documentation: See CI-CD.md section "Frontend Deployment"
+
+k8s/ingress.yaml
+├─ Purpose: Ingress routing and SSL/TLS
+├─ Ingress:
+│  ├─ Hosts: treasurer.example.com, api.treasurer.example.com
+│  ├─ TLS: Enabled with cert-manager
+│  ├─ CORS: Enabled
+│  ├─ Rate limiting: 100 RPS, 10 connections
+│  └─ Routes:
+│     ├─ / → client:3000
+│     └─ api.* → api:3001
+├─ ClusterIssuers:
+│  ├─ letsencrypt-prod: Production certificates
+│  └─ letsencrypt-staging: Testing certificates
+└─ IMPORTANT: Update domain names before deploying
+
+k8s/network-policy.yaml
+├─ Purpose: Network segmentation and security
+├─ Policies:
+│  ├─ Default: Restrict all ingress/egress
+│  ├─ Allow: Ingress controller access
+│  ├─ Allow: DNS (UDP 53)
+│  ├─ Allow: Pod-to-pod communication
+│  ├─ Allow: HTTPS outbound
+│  └─ Postgres: Only from api pods
+└─ Security: Implements network-based isolation
+
+k8s/kustomization.yaml
+├─ Purpose: Base Kustomization configuration
+├─ Resources: All base manifests
+├─ Images:
+│  ├─ ghcr.io/treasurer/api
+│  ├─ ghcr.io/treasurer/client
+│  └─ postgres:16-alpine
+├─ CommonLabels:
+│  ├─ app.kubernetes.io/name: treasurer
+│  ├─ app.kubernetes.io/version: v1.0.0
+│  ├─ app.kubernetes.io/managed-by: kustomize
+│  └─ app.kubernetes.io/part-of: treasurer
+└─ CommonAnnotations: created-by: CI/CD Pipeline
+
+════════════════════════════════════════════════════════════════════════════════
+5. KUBERNETES MANIFESTS - PRODUCTION OVERLAY
+════════════════════════════════════════════════════════════════════════════════
+
+k8s/overlays/prod/kustomization.yaml
+├─ Purpose: Production-specific customizations
+├─ Bases: ../../ (references base)
+├─ Image Tags:
+│  ├─ ghcr.io/treasurer/api:v1.0.0
+│  ├─ ghcr.io/treasurer/client:v1.0.0
+│  └─ postgres:16-alpine
+├─ Replicas:
+│  ├─ api: 3
+│  ├─ client: 3
+│  └─ postgres: 1
+├─ Patches:
+│  ├─ NODE_ENV: production
+│  ├─ CORS_ORIGIN: production domain
+│  └─ VITE_API_URL: production API URL
+└─ Resources: namespace-quota.yaml
+
+k8s/overlays/prod/namespace-quota.yaml
+├─ Purpose: Resource constraints and limits
+├─ ResourceQuota:
+│  ├─ CPU requests: 2
+│  ├─ CPU limits: 4
+│  ├─ Memory requests: 2Gi
+│  ├─ Memory limits: 4Gi
+│  ├─ Pods: 20
+│  ├─ Services: 5
+│  └─ PersistentVolumeClaims: 5
+├─ LimitRange (per container):
+│  ├─ Max CPU: 500m
+│  ├─ Max Memory: 512Mi
+│  ├─ Min CPU: 50m
+│  ├─ Min Memory: 64Mi
+│  ├─ Default CPU: 250m
+│  ├─ Default Memory: 256Mi
+│  ├─ Default Request CPU: 100m
+│  └─ Default Request Memory: 128Mi
+└─ Purpose: Prevent resource exhaustion
+
+════════════════════════════════════════════════════════════════════════════════
+6. DEPLOYMENT SCRIPTS
+════════════════════════════════════════════════════════════════════════════════
+
+scripts/deploy-docker.sh (4.1KB)
+├─ Purpose: Automated Docker Compose deployment
+├─ Usage: ./scripts/deploy-docker.sh [OPTIONS]
+├─ Options:
+│  ├─ -e, --environment ENV: dev or prod (default: dev)
+│  ├─ -a, --action ACTION: up, down, restart, pull (default: up)
+│  ├─ --build: Build images before starting
+│  ├─ -d, --detach: Run in background
+│  ├─ -l, --logs: Show logs after starting
+│  └─ -h, --help: Show help
+├─ Features:
+│  ├─ Color-coded output
+│  ├─ Error handling and validation
+│  ├─ Docker/Docker Compose availability checks
+│  ├─ Timestamped logging
+│  └─ Comprehensive error messages
+└─ Examples:
+   ./scripts/deploy-docker.sh --environment prod --build --detach
+   ./scripts/deploy-docker.sh --environment dev --action down
+
+scripts/deploy-k8s.sh (4.2KB)
+├─ Purpose: Automated Kubernetes deployment
+├─ Usage: ./scripts/deploy-k8s.sh [OPTIONS]
+├─ Options:
+│  ├─ -e, --environment ENV: dev or prod (default: dev)
+│  ├─ --apply: Apply changes (default)
+│  ├─ --delete: Delete resources
+│  ├─ --dry-run: Show changes without applying
+│  ├─ -v, --verbose: Verbose output
+│  └─ -h, --help: Show help
+├─ Features:
+│  ├─ kubectl availability checks
+│  ├─ Cluster connectivity validation
+│  ├─ Kustomization building
+│  ├─ Manifest preview in verbose mode
+│  ├─ Rollout status checking
+│  ├─ Resource status display
+│  └─ Comprehensive logging
+└─ Examples:
+   ./scripts/deploy-k8s.sh --environment prod --dry-run
+   ./scripts/deploy-k8s.sh --environment prod
+
+════════════════════════════════════════════════════════════════════════════════
+7. DOCUMENTATION
+════════════════════════════════════════════════════════════════════════════════
+
+CI-CD.md (15KB)
+├─ Purpose: Comprehensive CI/CD documentation
+├─ Sections:
+│  ├─ Overview
+│  ├─ GitHub Actions Workflows
+│  ├─ Pre-commit Hooks (Husky)
+│  ├─ Docker Setup (dev and prod)
+│  ├─ Kubernetes Deployment
+│  ├─ Deployment Scripts
+│  ├─ Environment Setup
+│  ├─ Troubleshooting
+│  ├─ Best Practices
+│  └─ Additional Resources
+└─ Audience: Deployment engineers, DevOps, developers
+
+QUICKSTART.md (6.8KB)
+├─ Purpose: Quick reference and setup guide
+├─ Sections:
+│  ├─ One-Minute Setup
+│  ├─ Git Workflow with Hooks
+│  ├─ CI/CD Pipeline Overview
+│  ├─ Common Tasks
+│  ├─ Docker Cheat Sheet
+│  ├─ Kubernetes Deployment
+│  ├─ Troubleshooting Quick Fixes
+│  └─ Environment Variables
+└─ Audience: All developers
+
+INFRASTRUCTURE_SUMMARY.md (12KB)
+├─ Purpose: Complete infrastructure overview
+├─ Sections:
+│  ├─ Overview
+│  ├─ Artifacts Summary
+│  ├─ File Structure
+│  ├─ Quick Start Commands
+│  ├─ Key Features
+│  ├─ Prerequisites
+│  ├─ Configuration Guide
+│  ├─ Security Considerations
+│  ├─ Performance Optimization
+│  ├─ Monitoring & Observability
+│  └─ Next Steps
+└─ Audience: Project leads, architects, DevOps
+
+════════════════════════════════════════════════════════════════════════════════
+SUMMARY STATISTICS
+════════════════════════════════════════════════════════════════════════════════
+
+Files Created: 28
+├─ GitHub Actions Workflows: 2
+├─ Husky Hooks: 3
+├─ Lint-staged Config: 1
+├─ Docker Files: 6
+├─ Kubernetes Manifests: 11
+├─ Deployment Scripts: 2
+└─ Documentation: 3
+
+Total Size: ~90KB of configuration and documentation
+
+Lines of Code/Config: ~3,000+ lines
+
+════════════════════════════════════════════════════════════════════════════════
+DEPLOYMENT PATHS
+════════════════════════════════════════════════════════════════════════════════
+
+Development Path:
+  Local → Git Hooks → GitHub Actions (CI)
+  ↓
+  Docker Compose Dev
+
+Staging Path:
+  Git Tag → GitHub Actions (Deploy) → Docker Images → GHCR
+  ↓
+  Docker Compose Prod / Kubernetes Dev Overlay
+
+Production Path:
+  Git Tag (v*.*.*)  → GitHub Actions (Deploy) → Docker Images → GHCR
+  ↓
+  Kubernetes Production Overlay → Auto-scaling → Ingress → TLS
+
+════════════════════════════════════════════════════════════════════════════════
+VERIFICATION CHECKLIST
+════════════════════════════════════════════════════════════════════════════════
+
+All files created:
+  ✓ .github/workflows/ci.yml
+  ✓ .github/workflows/deploy.yml
+  ✓ .husky/pre-commit
+  ✓ .husky/pre-push
+  ✓ .husky/commit-msg
+  ✓ .lintstagedrc.js
+  ✓ docker-compose.dev.yml
+  ✓ docker-compose.prod.yml
+  ✓ treasurer/Dockerfile.prod
+  ✓ treasurer-api/Dockerfile.prod
+  ✓ k8s/namespace.yaml
+  ✓ k8s/configmap.yaml
+  ✓ k8s/secrets.yaml
+  ✓ k8s/postgres.yaml
+  ✓ k8s/api.yaml
+  ✓ k8s/client.yaml
+  ✓ k8s/ingress.yaml
+  ✓ k8s/network-policy.yaml
+  ✓ k8s/kustomization.yaml
+  ✓ k8s/overlays/prod/kustomization.yaml
+  ✓ k8s/overlays/prod/namespace-quota.yaml
+  ✓ scripts/deploy-docker.sh
+  ✓ scripts/deploy-k8s.sh
+  ✓ CI-CD.md
+  ✓ QUICKSTART.md
+  ✓ INFRASTRUCTURE_SUMMARY.md
+  ✓ ARTIFACTS.txt
+
+════════════════════════════════════════════════════════════════════════════════
+END OF ARTIFACTS LISTING
+════════════════════════════════════════════════════════════════════════════════

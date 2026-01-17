@@ -28,7 +28,8 @@ model User {
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
-  memberships OrganizationMember[]
+  memberships            OrganizationMember[]
+  statusChanges          TransactionStatusHistory[]
 
   @@map("users")
 }
@@ -99,26 +100,56 @@ enum TransactionType {
   TRANSFER
 }
 
-model Transaction {
-  id                   String          @id @default(uuid())
-  description          String
-  amount               Decimal         @db.Decimal(19, 4)
-  transactionType      TransactionType @default(EXPENSE) @map("transaction_type")
-  date                 DateTime        @default(now())
-  feeAmount            Decimal?        @db.Decimal(19, 4) @map("fee_amount")
-  accountId            String          @map("account_id")
-  destinationAccountId String?         @map("destination_account_id")
-  createdAt            DateTime        @default(now()) @map("created_at")
-  updatedAt            DateTime        @updatedAt @map("updated_at")
+enum TransactionStatus {
+  UNCLEARED
+  CLEARED
+  RECONCILED
+}
 
-  account            Account            @relation("SourceTransactions", fields: [accountId], references: [id], onDelete: Cascade)
-  destinationAccount Account?           @relation("DestinationTransactions", fields: [destinationAccountId], references: [id], onDelete: SetNull)
+model Transaction {
+  id                   String            @id @default(uuid())
+  description          String
+  amount               Decimal           @db.Decimal(19, 4)
+  transactionType      TransactionType   @default(EXPENSE) @map("transaction_type")
+  date                 DateTime          @default(now())
+  feeAmount            Decimal?          @db.Decimal(19, 4) @map("fee_amount")
+  status               TransactionStatus @default(UNCLEARED)
+  clearedAt            DateTime?         @map("cleared_at")
+  reconciledAt         DateTime?         @map("reconciled_at")
+  accountId            String            @map("account_id")
+  destinationAccountId String?           @map("destination_account_id")
+  createdAt            DateTime          @default(now()) @map("created_at")
+  updatedAt            DateTime          @updatedAt @map("updated_at")
+
+  account            Account                    @relation("SourceTransactions", fields: [accountId], references: [id], onDelete: Cascade)
+  destinationAccount Account?                   @relation("DestinationTransactions", fields: [destinationAccountId], references: [id], onDelete: SetNull)
   splits             TransactionSplit[]
+  statusHistory      TransactionStatusHistory[]
 
   @@index([accountId])
   @@index([destinationAccountId])
   @@index([date])
+  @@index([status])
+  @@index([accountId, status])
+  @@index([accountId, status, date])
   @@map("transactions")
+}
+
+model TransactionStatusHistory {
+  id            String             @id @default(uuid())
+  transactionId String             @map("transaction_id")
+  fromStatus    TransactionStatus? @map("from_status")
+  toStatus      TransactionStatus  @map("to_status")
+  changedById   String             @map("changed_by_id")
+  changedAt     DateTime           @default(now()) @map("changed_at")
+  notes         String?
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  changedBy   User        @relation(fields: [changedById], references: [id], onDelete: Cascade)
+
+  @@index([transactionId])
+  @@index([changedAt])
+  @@map("transaction_status_history")
 }
 
 model TransactionSplit {

@@ -10,6 +10,7 @@ import {
 import { orgIdParamSchema } from '../schemas/organization.js'
 import { create, list, get, update, remove } from '../controllers/accountController.js'
 import transactionRouter from './transactions.js'
+import transactionStatusRouter from './transactionStatus.js'
 
 const router: RouterType = Router({ mergeParams: true })
 
@@ -53,6 +54,8 @@ router.delete(
 )
 
 // Transaction routes (nested under account)
+// Status routes must come before general transaction routes to avoid route conflicts
+router.use('/:accountId/transactions', transactionStatusRouter)
 router.use('/:accountId/transactions', transactionRouter)
 
 export default router

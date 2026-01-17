@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 export const transactionTypeEnum = z.enum(['INCOME', 'EXPENSE', 'TRANSFER'])
+export const transactionStatusEnum = z.enum(['UNCLEARED', 'CLEARED', 'RECONCILED'])
 
 export const transactionSplitSchema = z.object({
   amount: z.number().positive('Split amount must be positive'),
@@ -89,6 +90,12 @@ export const transactionQuerySchema = z.object({
   endDate: z.string().datetime({ offset: true }).optional(),
   type: transactionTypeEnum.optional(),
   category: z.string().optional(),
+  status: transactionStatusEnum.optional(),
+  statuses: z.array(transactionStatusEnum).optional(),
+  clearedAfter: z.string().datetime({ offset: true }).optional(),
+  clearedBefore: z.string().datetime({ offset: true }).optional(),
+  reconciledAfter: z.string().datetime({ offset: true }).optional(),
+  reconciledBefore: z.string().datetime({ offset: true }).optional(),
   limit: z.coerce.number().int().positive().max(100).optional().default(50),
   offset: z.coerce.number().int().min(0).optional().default(0),
 })
@@ -96,5 +103,6 @@ export const transactionQuerySchema = z.object({
 export type CreateTransactionDto = z.infer<typeof createTransactionSchema>
 export type UpdateTransactionDto = z.infer<typeof updateTransactionSchema>
 export type TransactionType = z.infer<typeof transactionTypeEnum>
+export type TransactionStatus = z.infer<typeof transactionStatusEnum>
 export type TransactionSplitDto = z.infer<typeof transactionSplitSchema>
 export type TransactionQueryDto = z.infer<typeof transactionQuerySchema>
