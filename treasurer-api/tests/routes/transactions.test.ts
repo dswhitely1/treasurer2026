@@ -586,5 +586,285 @@ describe('Transaction Routes', () => {
         expect(transactionResponse.status).toBe(400)
       })
     })
+
+    describe('TRANSFER update scenarios', () => {
+      it('should update TRANSFER amount correctly on both accounts', async () => {
+        // Create destination account
+        const destResponse = await request(app)
+          .post(`/api/organizations/${orgId}/accounts`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({
+            name: 'Destination Account',
+            accountType: 'SAVINGS',
+            balance: 500,
+          })
+
+        expect(destResponse.status).toBe(201)
+        const destId = destResponse.body.data.account.id
+
+        // Create TRANSFER: 200 from source to dest
+        const createResponse = await request(app)
+          .post(`/api/organizations/${orgId}/accounts/${accountId}/transactions`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({
+            description: 'Initial transfer',
+            amount: 200,
+            transactionType: 'TRANSFER',
+            destinationAccountId: destId,
+            splits: [{ amount: 200, categoryName: 'Transfer' }],
+          })
+
+        expect(createResponse.status).toBe(201)
+        const transactionId = createResponse.body.data.transaction.id
+
+        // Verify initial balances: source=800, dest=700
+        let sourceCheck = await request(app)
+          .get(`/api/organizations/${orgId}/accounts/${accountId}`)
+          .set('Authorization', `Bearer ${token}`)
+        expect(parseFloat(sourceCheck.body.data.account.balance)).toBe(800)
+
+        let destCheck = await request(app)
+          .get(`/api/organizations/${orgId}/accounts/${destId}`)
+          .set('Authorization', `Bearer ${token}`)
+        expect(parseFloat(destCheck.body.data.account.balance)).toBe(700)
+
+        // Update TRANSFER amount to 300
+        const updateResponse = await request(app)
+          .patch(`/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({
+            amount: 300,
+            splits: [{ amount: 300, categoryName: 'Transfer' }],
+          })
+
+        expect(updateResponse.status).toBe(200)
+
+        // Verify updated balances: source=700 (additional 100 deducted), dest=800 (additional 100 added)
+        sourceCheck = await request(app)
+          .get(`/api/organizations/${orgId}/accounts/${accountId}`)
+          .set('Authorization', `Bearer ${token}`)
+        expect(parseFloat(sourceCheck.body.data.account.balance)).toBe(700)
+
+        destCheck = await request(app)
+          .get(`/api/organizations/${orgId}/accounts/${destId}`)
+          .set('Authorization', `Bearer ${token}`)
+        expect(parseFloat(destCheck.body.data.account.balance)).toBe(800)
+      })
+
+      it('should update TRANSFER destination correctly', async () => {
+        // Create two destination accounts
+        const dest1Response = await request(app)
+          .post(`/api/organizations/${orgId}/accounts`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({
+            name: 'Destination 1',
+            accountType: 'SAVINGS',
+            balance: 500,
+          })
+        expect(dest1Response.status).toBe(201)
+        const dest1Id = dest1Response.body.data.account.id
+
+        const dest2Response = await request(app)
+          .post(`/api/organizations/${orgId}/accounts`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({
+            name: 'Destination 2',
+            accountType: 'SAVINGS',
+            balance: 500,
+          })
+        expect(dest2Response.status).toBe(201)
+        const dest2Id = dest2Response.body.data.account.id
+
+        // Create TRANSFER to dest1
+        const createResponse = await request(app)
+          .post(`/api/organizations/${orgId}/accounts/${accountId}/transactions`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({
+            description: 'Transfer to dest1',
+            amount: 200,
+            transactionType: 'TRANSFER',
+            destinationAccountId: dest1Id,
+            splits: [{ amount: 200, categoryName: 'Transfer' }],
+          })
+
+        expect(createResponse.status).toBe(201)
+        const transactionId = createResponse.body.data.transaction.id
+
+        // Verify: source=800, dest1=700, dest2=500
+        let dest1Check = await request(app)
+          .get(`/api/organizations/${orgId}/accounts/${dest1Id}`)
+          .set('Authorization', `Bearer ${token}`)
+        expect(parseFloat(dest1Check.body.data.account.balance)).toBe(700)
+
+        // Update destination to dest2
+        const updateResponse = await request(app)
+          .patch(`/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({
+            destinationAccountId: dest2Id,
+          })
+
+        expect(updateResponse.status).toBe(200)
+
+        // Verify: dest1 back to 500, dest2 now 700
+        dest1Check = await request(app)
+          .get(`/api/organizations/${orgId}/accounts/${dest1Id}`)
+          .set('Authorization', `Bearer ${token}`)
+        expect(parseFloat(dest1Check.body.data.account.balance)).toBe(500)
+
+        const dest2Check = await request(app)
+          .get(`/api/organizations/${orgId}/accounts/${dest2Id}`)
+          .set('Authorization', `Bearer ${token}`)
+        expect(parseFloat(dest2Check.body.data.account.balance)).toBe(700)
+      })
+
+      it('should convert EXPENSE to TRANSFER correctly', async () => {
+        // Create destination account
+        const destResponse = await request(app)
+          .post(`/api/organizations/${orgId}/accounts`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({
+            name: 'Destination Account',
+            accountType: 'SAVINGS',
+            balance: 500,
+          })
+        expect(destResponse.status).toBe(201)
+        const destId = destResponse.body.data.account.id
+
+        // Create EXPENSE
+        const createResponse = await request(app)
+          .post(`/api/organizations/${orgId}/accounts/${accountId}/transactions`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({
+            description: 'Original expense',
+            amount: 200,
+            transactionType: 'EXPENSE',
+            splits: [{ amount: 200, categoryName: 'Shopping' }],
+          })
+
+        expect(createResponse.status).toBe(201)
+        const transactionId = createResponse.body.data.transaction.id
+
+        // Verify: source=800 (1000-200), dest=500
+        let sourceCheck = await request(app)
+          .get(`/api/organizations/${orgId}/accounts/${accountId}`)
+          .set('Authorization', `Bearer ${token}`)
+        expect(parseFloat(sourceCheck.body.data.account.balance)).toBe(800)
+
+        // Convert to TRANSFER
+        const updateResponse = await request(app)
+          .patch(`/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({
+            transactionType: 'TRANSFER',
+            destinationAccountId: destId,
+          })
+
+        expect(updateResponse.status).toBe(200)
+
+        // EXPENSE reversed (+200), TRANSFER applied (-200 from source, +200 to dest)
+        // Net source: 800 + 200 - 200 = 800 (unchanged amount)
+        // Dest: 500 + 200 = 700
+        sourceCheck = await request(app)
+          .get(`/api/organizations/${orgId}/accounts/${accountId}`)
+          .set('Authorization', `Bearer ${token}`)
+        expect(parseFloat(sourceCheck.body.data.account.balance)).toBe(800)
+
+        const destCheck = await request(app)
+          .get(`/api/organizations/${orgId}/accounts/${destId}`)
+          .set('Authorization', `Bearer ${token}`)
+        expect(parseFloat(destCheck.body.data.account.balance)).toBe(700)
+      })
+
+      it('should convert TRANSFER to EXPENSE correctly', async () => {
+        // Create destination account
+        const destResponse = await request(app)
+          .post(`/api/organizations/${orgId}/accounts`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({
+            name: 'Destination Account',
+            accountType: 'SAVINGS',
+            balance: 500,
+          })
+        expect(destResponse.status).toBe(201)
+        const destId = destResponse.body.data.account.id
+
+        // Create TRANSFER
+        const createResponse = await request(app)
+          .post(`/api/organizations/${orgId}/accounts/${accountId}/transactions`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({
+            description: 'Original transfer',
+            amount: 200,
+            transactionType: 'TRANSFER',
+            destinationAccountId: destId,
+            splits: [{ amount: 200, categoryName: 'Transfer' }],
+          })
+
+        expect(createResponse.status).toBe(201)
+        const transactionId = createResponse.body.data.transaction.id
+
+        // Verify: source=800, dest=700
+        let sourceCheck = await request(app)
+          .get(`/api/organizations/${orgId}/accounts/${accountId}`)
+          .set('Authorization', `Bearer ${token}`)
+        expect(parseFloat(sourceCheck.body.data.account.balance)).toBe(800)
+
+        let destCheck = await request(app)
+          .get(`/api/organizations/${orgId}/accounts/${destId}`)
+          .set('Authorization', `Bearer ${token}`)
+        expect(parseFloat(destCheck.body.data.account.balance)).toBe(700)
+
+        // Convert to EXPENSE (remove destination)
+        const updateResponse = await request(app)
+          .patch(`/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({
+            transactionType: 'EXPENSE',
+            destinationAccountId: null,
+          })
+
+        expect(updateResponse.status).toBe(200)
+
+        // TRANSFER reversed: source +200, dest -200
+        // EXPENSE applied: source -200
+        // Net source: 800 + 200 - 200 = 800, dest: 700 - 200 = 500
+        sourceCheck = await request(app)
+          .get(`/api/organizations/${orgId}/accounts/${accountId}`)
+          .set('Authorization', `Bearer ${token}`)
+        expect(parseFloat(sourceCheck.body.data.account.balance)).toBe(800)
+
+        destCheck = await request(app)
+          .get(`/api/organizations/${orgId}/accounts/${destId}`)
+          .set('Authorization', `Bearer ${token}`)
+        expect(parseFloat(destCheck.body.data.account.balance)).toBe(500)
+      })
+
+      it('should reject updating to TRANSFER without destination', async () => {
+        // Create EXPENSE
+        const createResponse = await request(app)
+          .post(`/api/organizations/${orgId}/accounts/${accountId}/transactions`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({
+            description: 'Expense',
+            amount: 100,
+            transactionType: 'EXPENSE',
+            splits: [{ amount: 100, categoryName: 'Test' }],
+          })
+
+        expect(createResponse.status).toBe(201)
+        const transactionId = createResponse.body.data.transaction.id
+
+        // Try to convert to TRANSFER without destination
+        const updateResponse = await request(app)
+          .patch(`/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({
+            transactionType: 'TRANSFER',
+          })
+
+        expect(updateResponse.status).toBe(400)
+      })
+    })
   })
 })
