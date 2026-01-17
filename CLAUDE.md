@@ -72,7 +72,7 @@ treasurer/src/
 │   └── layout/       # Layout components (Header, Footer, RootLayout)
 ├── pages/            # Route pages
 ├── store/            # Redux Toolkit
-│   └── features/     # Redux slices
+│   └── features/     # Redux slices (auth, organization, account, transaction)
 ├── hooks/            # Custom hooks (useLocalStorage, useDebounce)
 ├── lib/              # Utilities
 │   └── api.ts        # Typed fetch client with ApiError class
@@ -83,6 +83,7 @@ treasurer/src/
 - UI components use a variants pattern for flexible styling
 - `@/*` path alias maps to `./src/`
 - React Router v6 with outlet-based layouts
+- Organization-scoped routes: `/org/:orgId/dashboard`, `/org/:orgId/accounts`, `/org/:orgId/transactions`
 
 ### Backend Structure
 
@@ -109,16 +110,54 @@ treasurer-api/src/
 
 PostgreSQL with Prisma ORM. Schema at `treasurer-api/prisma/schema.prisma`.
 
+**Core entities:**
+- `User` - System users with global role (USER/ADMIN)
+- `Organization` - Multi-tenant containers for financial data
+- `OrganizationMember` - User membership with org-level roles (OWNER/ADMIN/MEMBER)
+- `Account` - Financial accounts (checking, savings, credit, etc.) with optional transaction fees
+- `Transaction` - Financial transactions with type (INCOME/EXPENSE/TRANSFER)
+- `TransactionSplit` - Category allocations within a transaction
+- `Category` - Organization-scoped transaction categories
+
 ## API Endpoints
 
+### Core
 - `GET /health` - Health check
 - `POST /api/auth/register` - Registration
 - `POST /api/auth/login` - Login (returns JWT)
 - `GET /api/auth/me` - Current user (authenticated)
+
+### Organizations (all authenticated)
+- `POST /api/organizations` - Create organization
+- `GET /api/organizations` - List user's organizations
+- `GET/PATCH/DELETE /api/organizations/:orgId` - Organization CRUD
+- `POST /api/organizations/:orgId/switch` - Set as user's active organization
+- Member management at `/api/organizations/:orgId/members`
+
+### Accounts (nested under organizations)
+- `POST/GET /api/organizations/:orgId/accounts` - Create/List accounts
+- `GET/PATCH/DELETE /api/organizations/:orgId/accounts/:accountId` - Account CRUD
+
+### Transactions (nested under accounts)
+- `POST/GET /api/organizations/:orgId/accounts/:accountId/transactions` - Create/List transactions
+- `GET/PATCH/DELETE .../transactions/:transactionId` - Transaction CRUD
+
+### Categories
+- CRUD at `/api/organizations/:orgId/categories`
+
+### Users (admin)
 - `GET /api/users` - List users (admin only)
 - `GET/PATCH/DELETE /api/users/:id` - User CRUD
 
 Interactive docs at `/api-docs` when server running.
+
+## Authorization
+
+**Organization-scoped middleware:**
+- `requireOrgMembership()` - User must be a member of the organization
+- `requireOrgRole('OWNER', 'ADMIN')` - User must have specified role(s)
+
+Routes use nested structure where `:orgId` is validated and org membership checked via middleware.
 
 ## Environment Setup
 
