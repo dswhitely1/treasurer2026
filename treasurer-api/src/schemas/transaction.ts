@@ -13,6 +13,7 @@ export const createTransactionSchema = z.object({
   transactionType: transactionTypeEnum.optional().default('EXPENSE'),
   date: z.string().datetime({ offset: true }).optional(),
   applyFee: z.boolean().optional().default(false),
+  destinationAccountId: z.string().uuid('Invalid destination account ID').optional(),
   splits: z.array(transactionSplitSchema).min(1, 'At least one category split is required'),
 }).refine(
   (data) => {
@@ -24,6 +25,30 @@ export const createTransactionSchema = z.object({
     message: 'Split amounts must equal the transaction amount',
     path: ['splits'],
   }
+).refine(
+  (data) => {
+    // Destination account is required for TRANSFER transactions
+    if (data.transactionType === 'TRANSFER') {
+      return !!data.destinationAccountId
+    }
+    return true
+  },
+  {
+    message: 'Destination account is required for transfer transactions',
+    path: ['destinationAccountId'],
+  }
+).refine(
+  (data) => {
+    // Destination account should not be provided for non-TRANSFER transactions
+    if (data.transactionType !== 'TRANSFER' && data.destinationAccountId) {
+      return false
+    }
+    return true
+  },
+  {
+    message: 'Destination account should only be provided for transfer transactions',
+    path: ['destinationAccountId'],
+  }
 )
 
 export const updateTransactionSchema = z.object({
@@ -32,6 +57,7 @@ export const updateTransactionSchema = z.object({
   transactionType: transactionTypeEnum.optional(),
   date: z.string().datetime({ offset: true }).optional(),
   applyFee: z.boolean().optional(),
+  destinationAccountId: z.string().uuid('Invalid destination account ID').nullable().optional(),
   splits: z.array(transactionSplitSchema).min(1, 'At least one category split is required').optional(),
 }).refine(
   (data) => {

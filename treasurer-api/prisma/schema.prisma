@@ -85,8 +85,9 @@ model Account {
   createdAt      DateTime    @default(now()) @map("created_at")
   updatedAt      DateTime    @updatedAt @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  transactions Transaction[]
+  organization            Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sourceTransactions      Transaction[] @relation("SourceTransactions")
+  destinationTransactions Transaction[] @relation("DestinationTransactions")
 
   @@index([organizationId])
   @@map("accounts")
@@ -99,20 +100,23 @@ enum TransactionType {
 }
 
 model Transaction {
-  id              String          @id @default(uuid())
-  description     String
-  amount          Decimal         @db.Decimal(19, 4)
-  transactionType TransactionType @default(EXPENSE) @map("transaction_type")
-  date            DateTime        @default(now())
-  feeAmount       Decimal?        @db.Decimal(19, 4) @map("fee_amount")
-  accountId       String          @map("account_id")
-  createdAt       DateTime        @default(now()) @map("created_at")
-  updatedAt       DateTime        @updatedAt @map("updated_at")
+  id                   String          @id @default(uuid())
+  description          String
+  amount               Decimal         @db.Decimal(19, 4)
+  transactionType      TransactionType @default(EXPENSE) @map("transaction_type")
+  date                 DateTime        @default(now())
+  feeAmount            Decimal?        @db.Decimal(19, 4) @map("fee_amount")
+  accountId            String          @map("account_id")
+  destinationAccountId String?         @map("destination_account_id")
+  createdAt            DateTime        @default(now()) @map("created_at")
+  updatedAt            DateTime        @updatedAt @map("updated_at")
 
-  account Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  splits  TransactionSplit[]
+  account            Account            @relation("SourceTransactions", fields: [accountId], references: [id], onDelete: Cascade)
+  destinationAccount Account?           @relation("DestinationTransactions", fields: [destinationAccountId], references: [id], onDelete: SetNull)
+  splits             TransactionSplit[]
 
   @@index([accountId])
+  @@index([destinationAccountId])
   @@index([date])
   @@map("transactions")
 }

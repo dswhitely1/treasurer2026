@@ -23,6 +23,7 @@ export interface TransactionInfo {
   date: string
   feeAmount: string | null
   accountId: string
+  destinationAccountId: string | null
   splits: TransactionSplitInfo[]
   createdAt: string
   updatedAt: string
@@ -36,6 +37,7 @@ interface TransactionWithSplits {
   date: Date
   feeAmount: Prisma.Decimal | null
   accountId: string
+  destinationAccountId: string | null
   createdAt: Date
   updatedAt: Date
   splits: Array<{
@@ -58,6 +60,7 @@ function formatTransaction(transaction: TransactionWithSplits): TransactionInfo 
     date: transaction.date.toISOString(),
     feeAmount: transaction.feeAmount?.toString() ?? null,
     accountId: transaction.accountId,
+    destinationAccountId: transaction.destinationAccountId,
     splits: transaction.splits.map((split) => ({
       id: split.id,
       amount: split.amount.toString(),
@@ -103,7 +106,7 @@ export async function createTransaction(
   accountId: string,
   input: CreateTransactionDto
 ): Promise<TransactionInfo> {
-  // Verify account exists and belongs to org
+  // Verify source account exists and belongs to org
   const account = await prisma.account.findFirst({
     where: {
       id: accountId,
@@ -115,7 +118,30 @@ export async function createTransaction(
     throw new AppError('Account not found', 404)
   }
 
-  // Calculate fee if applicable
+  // For TRANSFER transactions, validate destination account
+  let destinationAccount = null
+  if (input.transactionType === 'TRANSFER') {
+    if (!input.destinationAccountId) {
+      throw new AppError('Destination account is required for transfers', 400)
+    }
+
+    if (input.destinationAccountId === accountId) {
+      throw new AppError('Source and destination accounts must be different', 400)
+    }
+
+    destinationAccount = await prisma.account.findFirst({
+      where: {
+        id: input.destinationAccountId,
+        organizationId,
+      },
+    })
+
+    if (!destinationAccount) {
+      throw new AppError('Destination account not found', 404)
+    }
+  }
+
+  // Calculate fee if applicable (fees apply to source account)
   let feeAmount: number | null = null
   if (input.applyFee && account.transactionFee) {
     feeAmount = account.transactionFee.toNumber()
@@ -138,6 +164,11 @@ export async function createTransaction(
         account: {
           connect: { id: accountId },
         },
+        ...(input.destinationAccountId && {
+          destinationAccount: {
+            connect: { id: input.destinationAccountId },
+          },
+        }),
         splits: {
           create: input.splits.map((split, index) => ({
             amount: split.amount,
@@ -156,22 +187,46 @@ export async function createTransaction(
       },
     })
 
-    // Update account balance
-    const totalAmount = input.transactionType === 'INCOME'
-      ? input.amount
-      : -input.amount
-    const totalWithFee = feeAmount
-      ? totalAmount - feeAmount
-      : totalAmount
+    // Update account balances based on transaction type
+    if (input.transactionType === 'TRANSFER') {
+      // TRANSFER: subtract from source, add to destination
+      const sourceDeduction = input.amount + (feeAmount ?? 0)
 
-    await tx.account.update({
-      where: { id: accountId },
-      data: {
-        balance: {
-          increment: totalWithFee,
+      await tx.account.update({
+        where: { id: accountId },
+        data: {
+          balance: {
+            decrement: sourceDeduction,
+          },
         },
-      },
-    })
+      })
+
+      await tx.account.update({
+        where: { id: input.destinationAccountId! },
+        data: {
+          balance: {
+            increment: input.amount,
+          },
+        },
+      })
+    } else {
+      // INCOME or EXPENSE
+      const totalAmount = input.transactionType === 'INCOME'
+        ? input.amount
+        : -input.amount
+      const totalWithFee = feeAmount
+        ? totalAmount - feeAmount
+        : totalAmount
+
+      await tx.account.update({
+        where: { id: accountId },
+        data: {
+          balance: {
+            increment: totalWithFee,
+          },
+        },
+      })
+    }
 
     return newTransaction
   })
@@ -426,25 +481,50 @@ export async function deleteTransaction(
     throw new AppError('Transaction not found', 404)
   }
 
-  // Calculate balance reversal
-  const amountImpact = existing.transactionType === 'INCOME'
-    ? -existing.amount.toNumber()
-    : existing.amount.toNumber()
-  const feeReversal = existing.feeAmount?.toNumber() ?? 0
-  const totalReversal = amountImpact + feeReversal
-
   await prisma.$transaction(async (tx) => {
     await tx.transaction.delete({
       where: { id: transactionId },
     })
 
-    await tx.account.update({
-      where: { id: accountId },
-      data: {
-        balance: {
-          increment: totalReversal,
+    if (existing.transactionType === 'TRANSFER') {
+      // Reverse TRANSFER: add back to source, subtract from destination
+      const sourceReversal = existing.amount.toNumber() + (existing.feeAmount?.toNumber() ?? 0)
+
+      await tx.account.update({
+        where: { id: accountId },
+        data: {
+          balance: {
+            increment: sourceReversal,
+          },
         },
-      },
-    })
+      })
+
+      if (existing.destinationAccountId) {
+        await tx.account.update({
+          where: { id: existing.destinationAccountId },
+          data: {
+            balance: {
+              decrement: existing.amount.toNumber(),
+            },
+          },
+        })
+      }
+    } else {
+      // Reverse INCOME or EXPENSE
+      const amountImpact = existing.transactionType === 'INCOME'
+        ? -existing.amount.toNumber()
+        : existing.amount.toNumber()
+      const feeReversal = existing.feeAmount?.toNumber() ?? 0
+      const totalReversal = amountImpact + feeReversal
+
+      await tx.account.update({
+        where: { id: accountId },
+        data: {
+          balance: {
+            increment: totalReversal,
+          },
+        },
+      })
+    }
   })
 }
