@@ -450,3 +450,126 @@ export async function validateTransactionNotReconciled(
     throw new AppError('Cannot modify reconciled transactions', 400)
   }
 }
+
+// Complete reconciliation interface
+export interface CompleteReconciliationInput {
+  accountId: string
+  organizationId: string
+  userId: string
+  statementBalance: number
+  statementDate: string
+  transactionIds: string[]
+  notes?: string
+}
+
+export interface CompleteReconciliationResult {
+  reconciled: number
+  statementBalance: number
+  clearedBalance: number
+  difference: number
+  reconciledAt: string
+}
+
+// Complete reconciliation - marks all selected transactions as RECONCILED
+export async function completeReconciliation(
+  input: CompleteReconciliationInput
+): Promise<CompleteReconciliationResult> {
+  // Verify account exists and belongs to org
+  const account = await prisma.account.findFirst({
+    where: {
+      id: input.accountId,
+      organizationId: input.organizationId,
+    },
+  })
+
+  if (!account) {
+    throw new AppError('Account not found', 404)
+  }
+
+  // Verify all transactions exist, belong to account, and are CLEARED
+  const transactions = await prisma.transaction.findMany({
+    where: {
+      id: { in: input.transactionIds },
+      accountId: input.accountId,
+    },
+    select: {
+      id: true,
+      status: true,
+      amount: true,
+      transactionType: true,
+    },
+  })
+
+  // Check if we found all requested transactions
+  if (transactions.length !== input.transactionIds.length) {
+    const foundIds = new Set(transactions.map((t) => t.id))
+    const missingIds = input.transactionIds.filter((id) => !foundIds.has(id))
+    throw new AppError(
+      `Transactions not found: ${missingIds.join(', ')}`,
+      404
+    )
+  }
+
+  // Verify all transactions are CLEARED (can only reconcile cleared transactions)
+  const nonClearedTransactions = transactions.filter(
+    (t) => t.status !== 'CLEARED'
+  )
+
+  if (nonClearedTransactions.length > 0) {
+    throw new AppError(
+      `Can only reconcile CLEARED transactions. Found ${nonClearedTransactions.length} transaction(s) with different status`,
+      400
+    )
+  }
+
+  // Calculate cleared balance from selected transactions
+  let clearedBalance = 0
+  for (const transaction of transactions) {
+    const amount = parseFloat(transaction.amount.toString())
+    if (transaction.transactionType === 'INCOME') {
+      clearedBalance += amount
+    } else if (transaction.transactionType === 'EXPENSE') {
+      clearedBalance -= amount
+    }
+    // TRANSFER transactions are handled based on account context in production
+  }
+
+  const difference = input.statementBalance - clearedBalance
+
+  // Use single transaction for atomicity
+  const now = new Date()
+  const reconciledAt = now.toISOString()
+
+  await prisma.$transaction(async (tx) => {
+    // Update all transactions to RECONCILED status
+    await tx.transaction.updateMany({
+      where: {
+        id: { in: input.transactionIds },
+      },
+      data: {
+        status: 'RECONCILED',
+        reconciledAt: now,
+      },
+    })
+
+    // Create status history records
+    await tx.transactionStatusHistory.createMany({
+      data: transactions.map((transaction) => ({
+        transactionId: transaction.id,
+        fromStatus: 'CLEARED',
+        toStatus: 'RECONCILED',
+        changedById: input.userId,
+        changedAt: now,
+        notes: input.notes || `Reconciled with statement balance: $${input.statementBalance.toFixed(2)} on ${input.statementDate}`,
+      })),
+    })
+  })
+
+  return {
+    reconciled: transactions.length,
+    statementBalance: input.statementBalance,
+    clearedBalance: parseFloat(clearedBalance.toFixed(2)),
+    difference: parseFloat(difference.toFixed(2)),
+    reconciledAt,
+  }
+}

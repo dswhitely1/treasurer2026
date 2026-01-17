@@ -2,6 +2,7 @@ import { Router, type IRouter } from 'express'
 import { prisma } from '../config/database.js'
 import { sendSuccess, sendError } from '../utils/response.js'
 import { getSystemMetrics, metricsCollector } from '../middleware/performance.js'
+import { authenticate, requireRole } from '../middleware/auth.js'
 
 export const healthRouter: IRouter = Router()
 
@@ -74,8 +75,9 @@ healthRouter.get('/live', (_req, res) => {
 /**
  * Performance metrics endpoint
  * Returns collected metrics for monitoring systems
+ * Requires ADMIN authentication for security
  */
-healthRouter.get('/metrics', (_req, res) => {
+healthRouter.get('/metrics', authenticate, requireRole('ADMIN'), (_req, res) => {
   const metrics = metricsCollector.getMetrics()
   const systemMetrics = getSystemMetrics()
 

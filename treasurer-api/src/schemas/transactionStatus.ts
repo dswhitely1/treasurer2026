@@ -33,7 +33,15 @@ export const accountStatusParamSchema = z.object({
   accountId: z.string().uuid('Invalid account ID'),
 })
 
+export const completeReconciliationRequestSchema = z.object({
+  statementBalance: z.number().finite('Statement balance must be a valid number'),
+  statementDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Statement date must be in YYYY-MM-DD format'),
+  transactionIds: z.array(z.string().uuid('Invalid transaction ID')).min(1, 'At least one transaction ID is required').max(1000, 'Maximum 1000 transactions per reconciliation'),
+  notes: z.string().max(500, 'Notes must be 500 characters or less').optional(),
+})
+
 export type TransactionStatus = z.infer<typeof transactionStatusEnum>
 export type StatusChangeRequestDto = z.infer<typeof statusChangeRequestSchema>
 export type BulkStatusChangeRequestDto = z.infer<typeof bulkStatusChangeRequestSchema>
 export type StatusFilterQueryDto = z.infer<typeof statusFilterQuerySchema>
+export type CompleteReconciliationRequestDto = z.infer<typeof completeReconciliationRequestSchema>

@@ -604,4 +604,214 @@ describe('Transaction Status Routes', () => {
       expect(summary.accountName).toBe('Test Account')
     })
   })
+
+  describe('POST /api/organizations/:orgId/accounts/:accountId/transactions/status/reconcile', () => {
+    it('should complete reconciliation successfully', async () => {
+      // First create some CLEARED transactions
+      const transaction1 = await prisma.transaction.create({
+        data: {
+          accountId,
+          transactionType: 'INCOME',
+          amount: '100.00',
+          description: 'Income transaction',
+          date: new Date(),
+          status: 'CLEARED',
+          clearedAt: new Date(),
+        },
+      })
+
+      const transaction2 = await prisma.transaction.create({
+        data: {
+          accountId,
+          transactionType: 'EXPENSE',
+          amount: '50.00',
+          description: 'Expense transaction',
+          date: new Date(),
+          status: 'CLEARED',
+          clearedAt: new Date(),
+        },
+      })
+
+      const response = await request(app)
+        .post(`/api/organizations/${orgId}/accounts/${accountId}/transactions/status/reconcile`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          statementBalance: 50.0,
+          statementDate: '2026-01-17',
+          transactionIds: [transaction1.id, transaction2.id],
+          notes: 'Test reconciliation',
+        })
+
+      expect(response.status).toBe(200)
+      expect(response.body.success).toBe(true)
+      expect(response.body.data.result.reconciled).toBe(2)
+      expect(response.body.data.result.clearedBalance).toBe(50.0)
+      expect(response.body.data.result.statementBalance).toBe(50.0)
+      expect(response.body.data.result.difference).toBe(0)
+
+      // Verify transactions are now RECONCILED
+      const updatedTx1 = await prisma.transaction.findUnique({
+        where: { id: transaction1.id },
+      })
+      const updatedTx2 = await prisma.transaction.findUnique({
+        where: { id: transaction2.id },
+      })
+
+      expect(updatedTx1?.status).toBe('RECONCILED')
+      expect(updatedTx2?.status).toBe('RECONCILED')
+      expect(updatedTx1?.reconciledAt).toBeDefined()
+      expect(updatedTx2?.reconciledAt).toBeDefined()
+    })
+
+    it('should return 401 without authentication', async () => {
+      const response = await request(app)
+        .post(`/api/organizations/${orgId}/accounts/${accountId}/transactions/status/reconcile`)
+        .send({
+          statementBalance: 100.0,
+          statementDate: '2026-01-17',
+          transactionIds: ['some-id'],
+        })
+
+      expect(response.status).toBe(401)
+    })
+
+    it('should return 403 without organization membership', async () => {
+      const otherUserResponse = await request(app)
+        .post('/api/auth/register')
+        .send({
+          name: 'Other User',
+          email: 'other-user-reconcile@example.com',
+          password: 'Password123',
+        })
+      const otherToken = otherUserResponse.body.data.token
+
+      const response = await request(app)
+        .post(`/api/organizations/${orgId}/accounts/${accountId}/transactions/status/reconcile`)
+        .set('Authorization', `Bearer ${otherToken}`)
+        .send({
+          statementBalance: 100.0,
+          statementDate: '2026-01-17',
+          transactionIds: ['some-id'],
+        })
+
+      expect(response.status).toBe(403)
+    })
+
+    it('should return 400 for non-CLEARED transactions', async () => {
+      // Create an UNCLEARED transaction
+      const transaction = await prisma.transaction.create({
+        data: {
+          accountId,
+          transactionType: 'INCOME',
+          amount: '100.00',
+          description: 'Uncleared transaction',
+          date: new Date(),
+          status: 'UNCLEARED',
+        },
+      })
+
+      const response = await request(app)
+        .post(`/api/organizations/${orgId}/accounts/${accountId}/transactions/status/reconcile`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          statementBalance: 100.0,
+          statementDate: '2026-01-17',
+          transactionIds: [transaction.id],
+        })
+
+      expect(response.status).toBe(400)
+      expect(response.body.message).toContain('CLEARED')
+    })
+
+    it('should return 404 for non-existent transactions', async () => {
+      const fakeId = '00000000-0000-0000-0000-000000000000'
+      const response = await request(app)
+        .post(`/api/organizations/${orgId}/accounts/${accountId}/transactions/status/reconcile`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          statementBalance: 100.0,
+          statementDate: '2026-01-17',
+          transactionIds: [fakeId],
+        })
+
+      expect(response.status).toBe(404)
+    })
+
+    it('should validate request body schema', async () => {
+      const response = await request(app)
+        .post(`/api/organizations/${orgId}/accounts/${accountId}/transactions/status/reconcile`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          statementBalance: 'not-a-number',
+          statementDate: 'invalid-date',
+          transactionIds: 'not-an-array',
+        })
+
+      expect(response.status).toBe(400)
+    })
+
+    it('should create status history records', async () => {
+      // Create a CLEARED transaction
+      const transaction = await prisma.transaction.create({
+        data: {
+          accountId,
+          transactionType: 'INCOME',
+          amount: '100.00',
+          description: 'Test transaction',
+          date: new Date(),
+          status: 'CLEARED',
+          clearedAt: new Date(),
+        },
+      })
+
+      await request(app)
+        .post(`/api/organizations/${orgId}/accounts/${accountId}/transactions/status/reconcile`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          statementBalance: 100.0,
+          statementDate: '2026-01-17',
+          transactionIds: [transaction.id],
+          notes: 'Test reconciliation with history',
+        })
+
+      // Check status history was created
+      const history = await prisma.transactionStatusHistory.findMany({
+        where: { transactionId: transaction.id },
+      })
+
+      expect(history.length).toBeGreaterThan(0)
+      const reconcileHistory = history.find((h) => h.toStatus === 'RECONCILED')
+      expect(reconcileHistory).toBeDefined()
+      expect(reconcileHistory?.fromStatus).toBe('CLEARED')
+      expect(reconcileHistory?.notes).toContain('Test reconciliation with history')
+    })
+
+    it('should calculate difference correctly', async () => {
+      const transaction = await prisma.transaction.create({
+        data: {
+          accountId,
+          transactionType: 'INCOME',
+          amount: '100.00',
+          description: 'Test transaction',
+          date: new Date(),
+          status: 'CLEARED',
+          clearedAt: new Date(),
+        },
+      })
+
+      const response = await request(app)
+        .post(`/api/organizations/${orgId}/accounts/${accountId}/transactions/status/reconcile`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          statementBalance: 150.0,
+          statementDate: '2026-01-17',
+          transactionIds: [transaction.id],
+        })
+
+      expect(response.status).toBe(200)
+      expect(response.body.data.result.clearedBalance).toBe(100.0)
+      expect(response.body.data.result.statementBalance).toBe(150.0)
+      expect(response.body.data.result.difference).toBe(50.0)
+    })
+  })
 })

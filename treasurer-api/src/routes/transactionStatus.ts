@@ -7,12 +7,14 @@ import {
   bulkStatusChangeRequestSchema,
   transactionStatusParamSchema,
   accountStatusParamSchema,
+  completeReconciliationRequestSchema,
 } from '../schemas/transactionStatus.js'
 import {
   changeStatus,
   bulkChangeStatus,
   getStatusHistory,
   getSummary,
+  completeReconciliation,
 } from '../controllers/transactionStatusController.js'
 
 const router: RouterType = Router({ mergeParams: true })
@@ -50,6 +52,14 @@ router.get(
   validate({ params: accountStatusParamSchema }),
   requireOrgMembership(),
   getSummary
+)
+
+// Complete reconciliation - mark selected transactions as RECONCILED
+router.post(
+  '/status/reconcile',
+  validate({ params: accountStatusParamSchema, body: completeReconciliationRequestSchema }),
+  requireOrgRole('OWNER', 'ADMIN'),
+  completeReconciliation
 )
 
 export default router

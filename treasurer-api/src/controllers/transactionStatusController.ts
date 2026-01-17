@@ -4,11 +4,13 @@ import {
   bulkChangeTransactionStatus,
   getTransactionStatusHistory,
   getReconciliationSummary,
+  completeReconciliation as completeReconciliationService,
 } from '../services/transactionStatusService.js'
 import { sendSuccess } from '../utils/response.js'
 import type {
   StatusChangeRequestDto,
   BulkStatusChangeRequestDto,
+  CompleteReconciliationRequestDto,
 } from '../schemas/transactionStatus.js'
 
 export const changeStatus: RequestHandler = async (req, res, next): Promise<void> => {
@@ -83,6 +85,30 @@ export const getSummary: RequestHandler = async (req, res, next) => {
       req.params.accountId as string
     )
     sendSuccess(res, { summary })
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const completeReconciliation: RequestHandler = async (req, res, next): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'Authentication required' })
+      return
+    }
+
+    const data = req.body as CompleteReconciliationRequestDto
+    const result = await completeReconciliationService({
+      accountId: req.params.accountId as string,
+      organizationId: req.params.orgId as string,
+      userId: req.user.id,
+      statementBalance: data.statementBalance,
+      statementDate: data.statementDate,
+      transactionIds: data.transactionIds,
+      notes: data.notes,
+    })
+
+    sendSuccess(res, { result }, 'Reconciliation completed successfully')
   } catch (error) {
     next(error)
   }
