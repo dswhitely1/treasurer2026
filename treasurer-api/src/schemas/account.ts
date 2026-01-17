@@ -16,6 +16,7 @@ export const createAccountSchema = z.object({
   accountType: accountTypeEnum.optional().default('CHECKING'),
   balance: z.number().optional().default(0),
   currency: z.string().length(3, 'Currency must be a 3-letter code').optional().default('USD'),
+  transactionFee: z.number().min(0, 'Transaction fee must be non-negative').optional(),
 })
 
 export const updateAccountSchema = z.object({
@@ -30,6 +31,7 @@ export const updateAccountSchema = z.object({
   balance: z.number().optional(),
   currency: z.string().length(3, 'Currency must be a 3-letter code').optional(),
   isActive: z.boolean().optional(),
+  transactionFee: z.number().min(0, 'Transaction fee must be non-negative').nullable().optional(),
 })
 
 export const accountIdParamSchema = z.object({

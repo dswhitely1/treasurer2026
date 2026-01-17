@@ -12,6 +12,7 @@ export interface AccountInfo {
   balance: string
   currency: string
   isActive: boolean
+  transactionFee: string | null
   organizationId: string
   createdAt: string
   updatedAt: string
@@ -26,6 +27,7 @@ function formatAccount(account: {
   balance: Prisma.Decimal
   currency: string
   isActive: boolean
+  transactionFee: Prisma.Decimal | null
   organizationId: string
   createdAt: Date
   updatedAt: Date
@@ -39,6 +41,7 @@ function formatAccount(account: {
     balance: account.balance.toString(),
     currency: account.currency,
     isActive: account.isActive,
+    transactionFee: account.transactionFee?.toString() ?? null,
     organizationId: account.organizationId,
     createdAt: account.createdAt.toISOString(),
     updatedAt: account.updatedAt.toISOString(),
@@ -57,6 +60,7 @@ export async function createAccount(
       accountType: input.accountType ?? 'CHECKING',
       balance: input.balance ?? 0,
       currency: input.currency ?? 'USD',
+      transactionFee: input.transactionFee,
       organizationId,
     },
   })
@@ -123,6 +127,7 @@ export async function updateAccount(
       ...(input.balance !== undefined && { balance: input.balance }),
       ...(input.currency !== undefined && { currency: input.currency }),
       ...(input.isActive !== undefined && { isActive: input.isActive }),
+      ...(input.transactionFee !== undefined && { transactionFee: input.transactionFee }),
     },
   })
 

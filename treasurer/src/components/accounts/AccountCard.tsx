@@ -1,8 +1,10 @@
+import { Link } from 'react-router-dom'
 import type { Account, AccountType } from '@/types'
-import { Card } from '@/components/ui'
+import { Card, Button } from '@/components/ui'
 
 interface AccountCardProps {
   account: Account
+  orgId: string
   onEdit?: (account: Account) => void
   onDelete?: (account: Account) => void
 }
@@ -33,7 +35,7 @@ function formatCurrency(amount: string, currency: string): string {
   }).format(num)
 }
 
-export function AccountCard({ account, onEdit, onDelete }: AccountCardProps) {
+export function AccountCard({ account, orgId, onEdit, onDelete }: AccountCardProps) {
   return (
     <Card className="p-6">
       <div className="flex items-start justify-between">
@@ -65,26 +67,33 @@ export function AccountCard({ account, onEdit, onDelete }: AccountCardProps) {
         </div>
       </div>
 
-      {(onEdit || onDelete) && (
-        <div className="mt-4 flex justify-end gap-2 border-t border-gray-100 pt-4">
-          {onEdit && (
-            <button
-              onClick={() => onEdit(account)}
-              className="text-sm text-blue-600 hover:text-blue-800"
-            >
-              Edit
-            </button>
-          )}
-          {onDelete && (
-            <button
-              onClick={() => onDelete(account)}
-              className="text-sm text-red-600 hover:text-red-800"
-            >
-              Delete
-            </button>
-          )}
-        </div>
-      )}
+      <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-4">
+        <Link to={`/organizations/${orgId}/accounts/${account.id}/transactions`}>
+          <Button variant="outline" size="sm">
+            View Transactions
+          </Button>
+        </Link>
+        {(onEdit || onDelete) && (
+          <div className="flex gap-2">
+            {onEdit && (
+              <button
+                onClick={() => onEdit(account)}
+                className="text-sm text-blue-600 hover:text-blue-800"
+              >
+                Edit
+              </button>
+            )}
+            {onDelete && (
+              <button
+                onClick={() => onDelete(account)}
+                className="text-sm text-red-600 hover:text-red-800"
+              >
+                Delete
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     </Card>
   )
 }

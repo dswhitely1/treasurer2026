@@ -24,6 +24,7 @@ import {
   switchOrg,
 } from '../controllers/organizationController.js'
 import accountRouter from './accounts.js'
+import categoryRouter from './categories.js'
 
 const router: RouterType = Router()
 
@@ -69,5 +70,8 @@ router.delete(
 
 // Account routes (nested under organization)
 router.use('/:orgId/accounts', accountRouter)
+
+// Category routes (nested under organization)
+router.use('/:orgId/categories', categoryRouter)
 
 export default router

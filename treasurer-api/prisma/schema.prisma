@@ -39,8 +39,9 @@ model Organization {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  members  OrganizationMember[]
-  accounts Account[]
+  members    OrganizationMember[]
+  accounts   Account[]
+  categories Category[]
 
   @@map("organizations")
 }
@@ -79,12 +80,70 @@ model Account {
   balance        Decimal     @default(0) @db.Decimal(19, 4)
   currency       String      @default("USD")
   isActive       Boolean     @default(true) @map("is_active")
+  transactionFee Decimal?    @db.Decimal(19, 4) @map("transaction_fee")
   organizationId String      @map("organization_id")
   createdAt      DateTime    @default(now()) @map("created_at")
   updatedAt      DateTime    @updatedAt @map("updated_at")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
 
   @@index([organizationId])
   @@map("accounts")
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+  TRANSFER
+}
+
+model Transaction {
+  id              String          @id @default(uuid())
+  description     String
+  amount          Decimal         @db.Decimal(19, 4)
+  transactionType TransactionType @default(EXPENSE) @map("transaction_type")
+  date            DateTime        @default(now())
+  feeAmount       Decimal?        @db.Decimal(19, 4) @map("fee_amount")
+  accountId       String          @map("account_id")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  account Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  splits  TransactionSplit[]
+
+  @@index([accountId])
+  @@index([date])
+  @@map("transactions")
+}
+
+model TransactionSplit {
+  id            String   @id @default(uuid())
+  amount        Decimal  @db.Decimal(19, 4)
+  transactionId String   @map("transaction_id")
+  categoryId    String   @map("category_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  category    Category    @relation(fields: [categoryId], references: [id])
+
+  @@index([transactionId])
+  @@index([categoryId])
+  @@map("transaction_splits")
+}
+
+model Category {
+  id             String   @id @default(uuid())
+  name           String
+  organizationId String   @map("organization_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  splits       TransactionSplit[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("categories")
 }

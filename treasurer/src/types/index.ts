@@ -80,6 +80,38 @@ export interface Account {
   balance: string
   currency: string
   isActive: boolean
+  transactionFee: string | null
+  organizationId: string
+  createdAt: string
+  updatedAt: string
+}
+
+// Transaction types
+export type TransactionType = 'INCOME' | 'EXPENSE' | 'TRANSFER'
+
+export interface TransactionSplit {
+  id: string
+  amount: string
+  categoryId: string
+  categoryName: string
+}
+
+export interface AccountTransaction {
+  id: string
+  description: string
+  amount: string
+  transactionType: TransactionType
+  date: string
+  feeAmount: string | null
+  accountId: string
+  splits: TransactionSplit[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TransactionCategory {
+  id: string
+  name: string
   organizationId: string
   createdAt: string
   updatedAt: string

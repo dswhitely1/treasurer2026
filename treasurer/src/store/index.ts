@@ -4,6 +4,7 @@ import counterReducer from './features/counterSlice'
 import authReducer from './features/authSlice'
 import organizationReducer from './features/organizationSlice'
 import accountReducer from './features/accountSlice'
+import transactionReducer from './features/transactionSlice'
 
 export const store = configureStore({
   reducer: {
@@ -11,6 +12,7 @@ export const store = configureStore({
     auth: authReducer,
     organization: organizationReducer,
     account: accountReducer,
+    transaction: transactionReducer,
   },
   devTools: import.meta.env.DEV,
 })

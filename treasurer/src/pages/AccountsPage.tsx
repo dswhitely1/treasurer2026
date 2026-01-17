@@ -135,6 +135,7 @@ export function AccountsPage() {
             <AccountCard
               key={account.id}
               account={account}
+              orgId={orgId!}
               onEdit={isAdmin ? () => console.log('Edit', account) : undefined}
               onDelete={isAdmin ? handleDeleteAccount : undefined}
             />

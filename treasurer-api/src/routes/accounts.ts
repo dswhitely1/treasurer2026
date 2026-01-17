@@ -9,6 +9,7 @@ import {
 } from '../schemas/account.js'
 import { orgIdParamSchema } from '../schemas/organization.js'
 import { create, list, get, update, remove } from '../controllers/accountController.js'
+import transactionRouter from './transactions.js'
 
 const router: RouterType = Router({ mergeParams: true })
 
@@ -50,5 +51,8 @@ router.delete(
   requireOrgRole('OWNER', 'ADMIN'),
   remove
 )
+
+// Transaction routes (nested under account)
+router.use('/:accountId/transactions', transactionRouter)
 
 export default router
