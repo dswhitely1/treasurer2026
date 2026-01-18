@@ -1,4 +1,4 @@
-import type { RequestHandler } from 'express'
+import type { RequestHandler } from "express";
 import {
   createVendor,
   getOrganizationVendors,
@@ -6,14 +6,14 @@ import {
   getVendor,
   updateVendor,
   deleteVendor,
-} from '../services/vendorService.js'
-import { sendSuccess, sendPaginated } from '../utils/response.js'
+} from "../services/vendorService.js";
+import { sendSuccess, sendPaginated } from "../utils/response.js";
 import type {
   CreateVendorDto,
   UpdateVendorDto,
   VendorQueryDto,
   VendorSearchDto,
-} from '../schemas/vendor.js'
+} from "../schemas/vendor.js";
 
 /**
  * @openapi
@@ -53,13 +53,13 @@ import type {
  */
 export const create: RequestHandler = async (req, res, next) => {
   try {
-    const data = req.body as CreateVendorDto
-    const vendor = await createVendor(req.params.orgId as string, data)
-    sendSuccess(res, { vendor }, 'Vendor created successfully', 201)
+    const data = req.body as CreateVendorDto;
+    const vendor = await createVendor(req.params.orgId as string, data);
+    sendSuccess(res, { vendor }, "Vendor created successfully", 201);
   } catch (error) {
-    next(error)
+    next(error);
   }
-}
+};
 
 /**
  * @openapi
@@ -97,25 +97,25 @@ export const create: RequestHandler = async (req, res, next) => {
  */
 export const list: RequestHandler = async (req, res, next) => {
   try {
-    const query = req.query as unknown as VendorQueryDto
+    const query = req.query as unknown as VendorQueryDto;
     const { vendors, total } = await getOrganizationVendors(
       req.params.orgId as string,
-      query
-    )
+      query,
+    );
 
-    const currentPage = Math.floor(query.offset / query.limit) + 1
-    const totalPages = Math.ceil(total / query.limit)
+    const currentPage = Math.floor(query.offset / query.limit) + 1;
+    const totalPages = Math.ceil(total / query.limit);
 
     sendPaginated(res, vendors, {
       total,
       limit: query.limit,
       page: currentPage,
       totalPages,
-    })
+    });
   } catch (error) {
-    next(error)
+    next(error);
   }
-}
+};
 
 /**
  * @openapi
@@ -150,13 +150,13 @@ export const list: RequestHandler = async (req, res, next) => {
  */
 export const search: RequestHandler = async (req, res, next) => {
   try {
-    const query = req.query as unknown as VendorSearchDto
-    const vendors = await searchVendors(req.params.orgId as string, query)
-    sendSuccess(res, { vendors })
+    const query = req.query as unknown as VendorSearchDto;
+    const vendors = await searchVendors(req.params.orgId as string, query);
+    sendSuccess(res, { vendors });
   } catch (error) {
-    next(error)
+    next(error);
   }
-}
+};
 
 /**
  * @openapi
@@ -189,13 +189,13 @@ export const get: RequestHandler = async (req, res, next) => {
   try {
     const vendor = await getVendor(
       req.params.orgId as string,
-      req.params.vendorId as string
-    )
-    sendSuccess(res, { vendor })
+      req.params.vendorId as string,
+    );
+    sendSuccess(res, { vendor });
   } catch (error) {
-    next(error)
+    next(error);
   }
-}
+};
 
 /**
  * @openapi
@@ -240,17 +240,17 @@ export const get: RequestHandler = async (req, res, next) => {
  */
 export const update: RequestHandler = async (req, res, next) => {
   try {
-    const data = req.body as UpdateVendorDto
+    const data = req.body as UpdateVendorDto;
     const vendor = await updateVendor(
       req.params.orgId as string,
       req.params.vendorId as string,
-      data
-    )
-    sendSuccess(res, { vendor }, 'Vendor updated successfully')
+      data,
+    );
+    sendSuccess(res, { vendor }, "Vendor updated successfully");
   } catch (error) {
-    next(error)
+    next(error);
   }
-}
+};
 
 /**
  * @openapi
@@ -258,7 +258,7 @@ export const update: RequestHandler = async (req, res, next) => {
  *   delete:
  *     tags: [Vendors]
  *     summary: Delete a vendor
- *     description: Soft deletes (marks inactive) if vendor has transactions, hard deletes otherwise
+ *     description: Hard deletes vendor only if no associated transactions exist. Returns 400 error if vendor has transactions
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -284,11 +284,11 @@ export const remove: RequestHandler = async (req, res, next) => {
   try {
     const result = await deleteVendor(
       req.params.orgId as string,
-      req.params.vendorId as string
-    )
+      req.params.vendorId as string,
+    );
 
-    sendSuccess(res, result, 'Vendor deleted successfully')
+    sendSuccess(res, result, "Vendor deleted successfully");
   } catch (error) {
-    next(error)
+    next(error);
   }
-}
+};
