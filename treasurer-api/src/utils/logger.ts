@@ -1,5 +1,5 @@
-import pino from 'pino'
-import { env } from '../config/env.js'
+import pino from "pino";
+import { env } from "../config/env.js";
 
 /**
  * Pino logger instance with structured logging
@@ -8,41 +8,46 @@ import { env } from '../config/env.js'
  * - Silent in test environment
  */
 export const logger = pino({
-  level: env.NODE_ENV === 'test' ? 'silent' : env.NODE_ENV === 'production' ? 'info' : 'debug',
+  level:
+    env.NODE_ENV === "test"
+      ? "silent"
+      : env.NODE_ENV === "production"
+        ? "info"
+        : "debug",
   formatters: {
     level: (label) => {
-      return { level: label }
+      return { level: label };
     },
     bindings: (bindings) => {
       return {
-        pid: bindings.pid,
-        hostname: bindings.hostname,
+        pid: bindings.pid as number,
+        hostname: bindings.hostname as string,
         node_version: process.version,
-      }
+      };
     },
   },
   timestamp: pino.stdTimeFunctions.isoTime,
   // Use pino-pretty in development for better readability
   transport:
-    env.NODE_ENV === 'development'
+    env.NODE_ENV === "development"
       ? {
-          target: 'pino-pretty',
+          target: "pino-pretty",
           options: {
             colorize: true,
-            ignore: 'pid,hostname',
-            translateTime: 'HH:MM:ss.l',
+            ignore: "pid,hostname",
+            translateTime: "HH:MM:ss.l",
             singleLine: false,
           },
         }
       : undefined,
-})
+});
 
 /**
  * Create a child logger with additional context
  * Useful for adding request-specific context to all log entries
  */
 export function createChildLogger(context: Record<string, unknown>) {
-  return logger.child(context)
+  return logger.child(context);
 }
 
 /**
@@ -55,26 +60,26 @@ export function logQuery(query: string, duration: number, threshold = 100) {
       {
         query,
         duration,
-        type: 'slow_query',
+        type: "slow_query",
       },
-      `Slow database query detected (${duration}ms)`
-    )
+      `Slow database query detected (${String(duration)}ms)`,
+    );
   } else {
     logger.debug(
       {
         query,
         duration,
-        type: 'query',
+        type: "query",
       },
-      'Database query executed'
-    )
+      "Database query executed",
+    );
   }
 }
 
 /**
  * Log errors with full context
  */
-export function logError(error: Error | unknown, context?: Record<string, unknown>) {
+export function logError(error: unknown, context?: Record<string, unknown>) {
   if (error instanceof Error) {
     logger.error(
       {
@@ -85,16 +90,16 @@ export function logError(error: Error | unknown, context?: Record<string, unknow
         },
         ...context,
       },
-      error.message
-    )
+      error.message,
+    );
   } else {
     logger.error(
       {
         error: String(error),
         ...context,
       },
-      'Unknown error occurred'
-    )
+      "Unknown error occurred",
+    );
   }
 }
 
@@ -102,32 +107,38 @@ export function logError(error: Error | unknown, context?: Record<string, unknow
  * Performance marker for critical operations
  */
 export class PerformanceMarker {
-  private startTime: number
-  private operation: string
-  private context: Record<string, unknown>
+  private startTime: number;
+  private operation: string;
+  private context: Record<string, unknown>;
 
   constructor(operation: string, context: Record<string, unknown> = {}) {
-    this.operation = operation
-    this.context = context
-    this.startTime = Date.now()
-    logger.debug({ operation, ...context }, `Starting: ${operation}`)
+    this.operation = operation;
+    this.context = context;
+    this.startTime = Date.now();
+    logger.debug({ operation, ...context }, `Starting: ${operation}`);
   }
 
   end(additionalContext?: Record<string, unknown>) {
-    const duration = Date.now() - this.startTime
+    const duration = Date.now() - this.startTime;
     const logContext = {
       operation: this.operation,
       duration,
       ...this.context,
       ...additionalContext,
-    }
+    };
 
     if (duration > 1000) {
-      logger.warn(logContext, `Slow operation completed: ${this.operation} (${duration}ms)`)
+      logger.warn(
+        logContext,
+        `Slow operation completed: ${this.operation} (${String(duration)}ms)`,
+      );
     } else {
-      logger.debug(logContext, `Completed: ${this.operation} (${duration}ms)`)
+      logger.debug(
+        logContext,
+        `Completed: ${this.operation} (${String(duration)}ms)`,
+      );
     }
 
-    return duration
+    return duration;
   }
 }

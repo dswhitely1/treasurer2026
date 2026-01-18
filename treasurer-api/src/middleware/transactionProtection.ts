@@ -1,5 +1,5 @@
-import type { RequestHandler } from 'express'
-import { validateTransactionNotReconciled } from '../services/transactionStatusService.js'
+import type { RequestHandler } from "express";
+import { validateTransactionNotReconciled } from "../services/transactionStatusService.js";
 
 /**
  * Middleware to prevent modification of reconciled transactions.
@@ -8,16 +8,17 @@ import { validateTransactionNotReconciled } from '../services/transactionStatusS
 export const preventReconciledModification = (): RequestHandler => {
   return async (req, _res, next) => {
     try {
-      const transactionId = req.params.transactionId
+      const transactionId = req.params.transactionId;
 
       if (!transactionId || Array.isArray(transactionId)) {
-        return next()
+        next();
+        return;
       }
 
-      await validateTransactionNotReconciled(transactionId)
-      next()
+      await validateTransactionNotReconciled(transactionId);
+      next();
     } catch (error) {
-      next(error)
+      next(error);
     }
-  }
-}
+  };
+};
