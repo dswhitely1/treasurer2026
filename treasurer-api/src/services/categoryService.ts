@@ -474,11 +474,13 @@ export async function updateCategory(
       if (depthDelta !== 0) {
         const descendants = await getDescendantIds(categoryId, organizationId);
         if (descendants.length > 0) {
-          await tx.$executeRaw`
-            UPDATE categories
-            SET depth = depth + ${depthDelta}
-            WHERE id = ANY(${descendants}::uuid[])
-          `;
+          // Update each descendant's depth incrementally
+          for (const descendantId of descendants) {
+            await tx.category.update({
+              where: { id: descendantId },
+              data: { depth: { increment: depthDelta } },
+            });
+          }
         }
       }
 
