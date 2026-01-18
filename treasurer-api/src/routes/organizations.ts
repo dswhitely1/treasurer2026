@@ -25,6 +25,7 @@ import {
 } from '../controllers/organizationController.js'
 import accountRouter from './accounts.js'
 import categoryRouter from './categories.js'
+import vendorRouter from './vendors.js'
 
 const router: RouterType = Router()
 
@@ -73,5 +74,8 @@ router.use('/:orgId/accounts', accountRouter)
 
 // Category routes (nested under organization)
 router.use('/:orgId/categories', categoryRouter)
+
+// Vendor routes (nested under organization)
+router.use('/:orgId/vendors', vendorRouter)
 
 export default router

@@ -18,14 +18,11 @@ export const transactionSplitSchema = z.object({
 
 export const createTransactionSchema = z
   .object({
-    description: z
-      .string()
-      .min(1, "Description is required")
-      .max(500, "Description must be 500 characters or less"),
     memo: z
       .string()
       .max(1000, "Memo must be 1000 characters or less")
-      .optional(),
+      .optional()
+      .nullable(),
     amount: z.number().positive("Amount must be positive"),
     transactionType: transactionTypeEnum.optional().default("EXPENSE"),
     date: z.string().datetime({ offset: true }).optional(),
@@ -83,11 +80,6 @@ export const createTransactionSchema = z
 
 export const updateTransactionSchema = z
   .object({
-    description: z
-      .string()
-      .min(1, "Description is required")
-      .max(500, "Description must be 500 characters or less")
-      .optional(),
     memo: z
       .string()
       .max(1000, "Memo must be 1000 characters or less")

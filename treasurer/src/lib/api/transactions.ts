@@ -13,6 +13,10 @@ export interface CreateTransactionInput {
   date?: string
   applyFee?: boolean
   splits: TransactionSplitInput[]
+  /** Vendor ID for payee/merchant tracking */
+  vendorId?: string | null
+  /** Additional notes/memo for the transaction */
+  memo?: string | null
 }
 
 export interface UpdateTransactionInput {
@@ -22,6 +26,10 @@ export interface UpdateTransactionInput {
   date?: string
   applyFee?: boolean
   splits?: TransactionSplitInput[]
+  /** Vendor ID for payee/merchant tracking */
+  vendorId?: string | null
+  /** Additional notes/memo for the transaction */
+  memo?: string | null
 }
 
 export interface TransactionQueryParams {
@@ -29,6 +37,7 @@ export interface TransactionQueryParams {
   endDate?: string
   type?: TransactionType
   category?: string
+  vendorId?: string
   limit?: number
   offset?: number
 }
@@ -71,6 +80,7 @@ export const transactionApi = {
       if (params.endDate) queryParams.endDate = params.endDate
       if (params.type) queryParams.type = params.type
       if (params.category) queryParams.category = params.category
+      if (params.vendorId) queryParams.vendorId = params.vendorId
       if (params.limit !== undefined) queryParams.limit = String(params.limit)
       if (params.offset !== undefined) queryParams.offset = String(params.offset)
     }

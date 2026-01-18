@@ -1,17 +1,15 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import {
   fetchTransactions,
   createTransaction,
   deleteTransaction,
-  fetchCategories,
   clearTransactionError,
   selectTransactions,
   selectTransactionTotal,
   selectTransactionLoading,
   selectTransactionError,
-  selectCategories,
 } from '@/store/features/transactionSlice'
 import {
   selectStatusFilter,
@@ -20,7 +18,7 @@ import {
 } from '@/store/features/statusSlice'
 import { selectIsOrgAdmin } from '@/store/features/organizationSlice'
 import { Card, Button } from '@/components/ui'
-import { TransactionCard, CreateTransactionForm, type CreateTransactionData } from '@/components/transactions'
+import { TransactionCard, EnhancedTransactionForm, type CreateTransactionData } from '@/components/transactions'
 import {
   StatusFilterControls,
   TransactionBulkActions,
@@ -131,7 +129,6 @@ export function TransactionsPage() {
   const total = useAppSelector(selectTransactionTotal)
   const isLoading = useAppSelector(selectTransactionLoading)
   const error = useAppSelector(selectTransactionError)
-  const categories = useAppSelector(selectCategories)
   const isAdmin = useAppSelector(selectIsOrgAdmin)
   const statusFilter = useAppSelector(selectStatusFilter)
   const selectedCount = useAppSelector(selectSelectionCount)
@@ -171,7 +168,6 @@ export function TransactionsPage() {
   useEffect(() => {
     if (orgId && accountId) {
       void dispatch(fetchTransactions({ orgId, accountId }))
-      void dispatch(fetchCategories({ orgId }))
 
       // Fetch account details
       accountApi
@@ -198,15 +194,6 @@ export function TransactionsPage() {
     })
     setStatusCounts(counts)
   }, [transactions])
-
-  const handleCategorySearch = useCallback(
-    (search: string) => {
-      if (orgId) {
-        void dispatch(fetchCategories({ orgId, search, limit: 10 }))
-      }
-    },
-    [dispatch, orgId]
-  )
 
   const handleCreateTransaction = (data: CreateTransactionData) => {
     if (!orgId || !accountId) return
@@ -384,17 +371,16 @@ export function TransactionsPage() {
       </div>
 
       {/* Create Transaction Form */}
-      {showCreateForm && account && (
+      {showCreateForm && account && orgId && (
         <Card className="mb-8 p-6">
           <h2 className="mb-4 text-xl font-semibold text-gray-900">Add Transaction</h2>
-          <CreateTransactionForm
+          <EnhancedTransactionForm
             account={account}
-            categories={categories}
+            orgId={orgId}
             isLoading={isLoading}
             error={error}
             onSubmit={handleCreateTransaction}
             onCancel={handleCancelCreate}
-            onCategorySearch={handleCategorySearch}
           />
         </Card>
       )}

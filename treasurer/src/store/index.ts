@@ -6,6 +6,8 @@ import organizationReducer from './features/organizationSlice'
 import accountReducer from './features/accountSlice'
 import transactionReducer from './features/transactionSlice'
 import statusReducer from './features/statusSlice'
+import vendorReducer from './features/vendorSlice'
+import categoryReducer from './features/categorySlice'
 import { statusApi } from '@/features/status/api'
 
 export const store = configureStore({
@@ -16,6 +18,8 @@ export const store = configureStore({
     account: accountReducer,
     transaction: transactionReducer,
     status: statusReducer,
+    vendor: vendorReducer,
+    category: categoryReducer,
     [statusApi.reducerPath]: statusApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>

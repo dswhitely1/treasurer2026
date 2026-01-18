@@ -61,6 +61,34 @@ export function Header() {
               >
                 Dashboard
               </NavLink>
+              {currentOrg && (
+                <>
+                  <NavLink
+                    to={`/organizations/${currentOrg.id}/vendors`}
+                    className={({ isActive }) =>
+                      `text-sm font-medium transition-colors ${
+                        isActive
+                          ? 'text-blue-600'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`
+                    }
+                  >
+                    Vendors
+                  </NavLink>
+                  <NavLink
+                    to={`/organizations/${currentOrg.id}/categories`}
+                    className={({ isActive }) =>
+                      `text-sm font-medium transition-colors ${
+                        isActive
+                          ? 'text-blue-600'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`
+                    }
+                  >
+                    Categories
+                  </NavLink>
+                </>
+              )}
               <span className="text-sm text-gray-500">
                 {user?.name || user?.email}
               </span>

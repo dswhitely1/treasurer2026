@@ -53,7 +53,7 @@ describe("Transaction Status Service", () => {
     // Create test transaction
     const transaction = await prisma.transaction.create({
       data: {
-        description: "Test Transaction",
+        memo: "Test Transaction",
         amount: 100,
         transactionType: "EXPENSE",
         accountId,
@@ -327,7 +327,7 @@ describe("Transaction Status Service", () => {
       // Create additional transactions for bulk operations
       const tx2 = await prisma.transaction.create({
         data: {
-          description: "Transaction 2",
+          memo: "Transaction 2",
           amount: 200,
           transactionType: "EXPENSE",
           accountId,
@@ -338,7 +338,7 @@ describe("Transaction Status Service", () => {
 
       const tx3 = await prisma.transaction.create({
         data: {
-          description: "Transaction 3",
+          memo: "Transaction 3",
           amount: 300,
           transactionType: "INCOME",
           accountId,
@@ -609,7 +609,7 @@ describe("Transaction Status Service", () => {
       // Create transactions with different statuses
       await prisma.transaction.create({
         data: {
-          description: "Uncleared 1",
+          memo: "Uncleared 1",
           amount: 100,
           transactionType: "INCOME",
           accountId,
@@ -619,7 +619,7 @@ describe("Transaction Status Service", () => {
 
       await prisma.transaction.create({
         data: {
-          description: "Uncleared 2",
+          memo: "Uncleared 2",
           amount: 50,
           transactionType: "EXPENSE",
           accountId,
@@ -629,7 +629,7 @@ describe("Transaction Status Service", () => {
 
       await prisma.transaction.create({
         data: {
-          description: "Cleared 1",
+          memo: "Cleared 1",
           amount: 200,
           transactionType: "INCOME",
           accountId,
@@ -640,7 +640,7 @@ describe("Transaction Status Service", () => {
 
       await prisma.transaction.create({
         data: {
-          description: "Cleared 2",
+          memo: "Cleared 2",
           amount: 75,
           transactionType: "EXPENSE",
           accountId,
@@ -651,7 +651,7 @@ describe("Transaction Status Service", () => {
 
       await prisma.transaction.create({
         data: {
-          description: "Reconciled 1",
+          memo: "Reconciled 1",
           amount: 300,
           transactionType: "INCOME",
           accountId,
@@ -663,7 +663,7 @@ describe("Transaction Status Service", () => {
 
       await prisma.transaction.create({
         data: {
-          description: "Reconciled 2",
+          memo: "Reconciled 2",
           amount: 100,
           transactionType: "EXPENSE",
           accountId,
@@ -719,7 +719,7 @@ describe("Transaction Status Service", () => {
       // Create a transfer transaction
       await prisma.transaction.create({
         data: {
-          description: "Transfer out",
+          memo: "Transfer out",
           amount: 150,
           transactionType: "TRANSFER",
           accountId,

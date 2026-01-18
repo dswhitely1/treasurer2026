@@ -108,16 +108,16 @@ export async function createTransaction(
   orgId: string,
   accountId: string,
   transactionData?: {
-    description?: string
+    memo?: string
     amount?: number
     transactionType?: string
     date?: string
   }
 ): Promise<{
   transactionId: string
-  description: string
+  memo: string
 }> {
-  const description = transactionData?.description ?? `Test Transaction ${Date.now()}`
+  const memo = transactionData?.memo ?? `Test Transaction ${Date.now()}`
   const amount = transactionData?.amount ?? 100
   const transactionType = transactionData?.transactionType ?? 'EXPENSE'
   const date = transactionData?.date ?? new Date().toISOString()
@@ -126,7 +126,7 @@ export async function createTransaction(
     .post(`/api/organizations/${orgId}/accounts/${accountId}/transactions`)
     .set('Authorization', `Bearer ${token}`)
     .send({
-      description,
+      memo,
       amount,
       transactionType,
       date,
@@ -134,7 +134,7 @@ export async function createTransaction(
 
   return {
     transactionId: response.body.data.transaction.id,
-    description,
+    memo,
   }
 }
 
@@ -291,7 +291,7 @@ export async function seedTransactionsWithStatuses(
   for (let i = 0; i < (counts.uncleared ?? 0); i++) {
     const tx = await prisma.transaction.create({
       data: {
-        description: `Uncleared ${i + 1}`,
+        memo: `Uncleared ${i + 1}`,
         amount: (i + 1) * 100,
         transactionType: 'EXPENSE',
         accountId,
@@ -305,7 +305,7 @@ export async function seedTransactionsWithStatuses(
   for (let i = 0; i < (counts.cleared ?? 0); i++) {
     const tx = await prisma.transaction.create({
       data: {
-        description: `Cleared ${i + 1}`,
+        memo: `Cleared ${i + 1}`,
         amount: (i + 1) * 100,
         transactionType: 'EXPENSE',
         accountId,
@@ -320,7 +320,7 @@ export async function seedTransactionsWithStatuses(
   for (let i = 0; i < (counts.reconciled ?? 0); i++) {
     const tx = await prisma.transaction.create({
       data: {
-        description: `Reconciled ${i + 1}`,
+        memo: `Reconciled ${i + 1}`,
         amount: (i + 1) * 100,
         transactionType: 'EXPENSE',
         accountId,

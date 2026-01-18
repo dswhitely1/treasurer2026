@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../config/database.js";
 import { AppError } from "../middleware/errorHandler.js";
+import { validateVendorOwnership } from "./vendorService.js";
 import type {
   CreateTransactionDto,
   UpdateTransactionDto,
@@ -18,10 +19,13 @@ export interface TransactionSplitInfo {
 export interface TransactionInfo {
   id: string;
   description: string;
+  memo: string | null;
   amount: string;
   transactionType: TransactionType;
   date: string;
   feeAmount: string | null;
+  vendorId: string | null;
+  vendorName: string | null;
   accountId: string;
   destinationAccountId: string | null;
   status: string;
@@ -34,11 +38,12 @@ export interface TransactionInfo {
 
 interface TransactionWithSplits {
   id: string;
-  description: string;
+  memo: string | null;
   amount: Prisma.Decimal;
   transactionType: string;
   date: Date;
   feeAmount: Prisma.Decimal | null;
+  vendorId: string | null;
   accountId: string;
   destinationAccountId: string | null;
   status: string;
@@ -46,6 +51,10 @@ interface TransactionWithSplits {
   reconciledAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  vendor?: {
+    id: string;
+    name: string;
+  } | null;
   splits: Array<{
     id: string;
     amount: Prisma.Decimal;
@@ -62,11 +71,14 @@ function formatTransaction(
 ): TransactionInfo {
   return {
     id: transaction.id,
-    description: transaction.description,
+    description: transaction.memo,
+    memo: transaction.memo,
     amount: transaction.amount.toString(),
     transactionType: transaction.transactionType as TransactionType,
     date: transaction.date.toISOString(),
     feeAmount: transaction.feeAmount?.toString() ?? null,
+    vendorId: transaction.vendorId,
+    vendorName: transaction.vendor?.name ?? null,
     accountId: transaction.accountId,
     destinationAccountId: transaction.destinationAccountId,
     status: transaction.status,
@@ -89,12 +101,15 @@ async function getOrCreateCategory(
 ): Promise<string> {
   const normalizedName = categoryName.trim();
 
-  const existing = await prisma.category.findUnique({
+  // Find category by name (case-insensitive) at root level (parentId = null)
+  const existing = await prisma.category.findFirst({
     where: {
-      organizationId_name: {
-        organizationId,
-        name: normalizedName,
+      organizationId,
+      name: {
+        equals: normalizedName,
+        mode: 'insensitive',
       },
+      parentId: null,
     },
   });
 
@@ -106,6 +121,8 @@ async function getOrCreateCategory(
     data: {
       name: normalizedName,
       organizationId,
+      depth: 0,
+      parentId: null,
     },
   });
 
@@ -127,6 +144,14 @@ export async function createTransaction(
 
   if (!account) {
     throw new AppError("Account not found", 404);
+  }
+
+  // Validate vendor if provided
+  if (input.vendorId) {
+    const isValid = await validateVendorOwnership(input.vendorId, organizationId);
+    if (!isValid) {
+      throw new AppError("Vendor not found or inactive", 404);
+    }
   }
 
   // For TRANSFER transactions, validate destination account
@@ -163,20 +188,43 @@ export async function createTransaction(
 
   // Get or create categories
   const categoryIds = await Promise.all(
-    input.splits.map((split) =>
-      getOrCreateCategory(organizationId, split.categoryName),
-    ),
+    input.splits.map(async (split) => {
+      // If categoryId is provided, use it (hierarchical category selected)
+      if (split.categoryId) {
+        // Verify the category exists and belongs to the organization
+        const category = await prisma.category.findFirst({
+          where: {
+            id: split.categoryId,
+            organizationId,
+          },
+        });
+
+        if (!category) {
+          throw new AppError(`Category ${split.categoryName} not found`, 404);
+        }
+
+        return split.categoryId;
+      }
+
+      // Otherwise, get or create by name (legacy/manual entry)
+      return getOrCreateCategory(organizationId, split.categoryName);
+    }),
   );
 
   // Create transaction with splits in a transaction
   const transaction = await prisma.$transaction(async (tx) => {
     const newTransaction = await tx.transaction.create({
       data: {
-        description: input.description,
+        memo: input.memo,
         amount: input.amount,
         transactionType: input.transactionType,
         date: input.date ? new Date(input.date) : new Date(),
         feeAmount,
+        ...(input.vendorId && {
+          vendor: {
+            connect: { id: input.vendorId },
+          },
+        }),
         account: {
           connect: { id: accountId },
         },
@@ -195,6 +243,7 @@ export async function createTransaction(
         },
       },
       include: {
+        vendor: true,
         splits: {
           include: {
             category: true,
@@ -272,6 +321,7 @@ export async function getAccountTransactions(
     ...(query.startDate && { date: { gte: new Date(query.startDate) } }),
     ...(query.endDate && { date: { lte: new Date(query.endDate) } }),
     ...(query.type && { transactionType: query.type }),
+    ...(query.vendorId && { vendorId: query.vendorId }),
     ...(query.category && {
       splits: {
         some: {
@@ -310,6 +360,7 @@ export async function getAccountTransactions(
     prisma.transaction.findMany({
       where,
       include: {
+        vendor: true,
         splits: {
           include: {
             category: true,
@@ -352,6 +403,7 @@ export async function getTransaction(
       accountId,
     },
     include: {
+      vendor: true,
       splits: {
         include: {
           category: true,
@@ -397,6 +449,14 @@ export async function updateTransaction(
 
   if (!existing) {
     throw new AppError("Transaction not found", 404);
+  }
+
+  // Validate vendor if provided
+  if (input.vendorId !== undefined && input.vendorId !== null) {
+    const isValid = await validateVendorOwnership(input.vendorId, organizationId);
+    if (!isValid) {
+      throw new AppError("Vendor not found or inactive", 404);
+    }
   }
 
   // Determine old and new transaction types
@@ -457,9 +517,27 @@ export async function updateTransaction(
   let categoryIds: string[] = [];
   if (input.splits) {
     categoryIds = await Promise.all(
-      input.splits.map((split) =>
-        getOrCreateCategory(organizationId, split.categoryName),
-      ),
+      input.splits.map(async (split) => {
+        // If categoryId is provided, use it (hierarchical category selected)
+        if (split.categoryId) {
+          // Verify the category exists and belongs to the organization
+          const category = await prisma.category.findFirst({
+            where: {
+              id: split.categoryId,
+              organizationId,
+            },
+          });
+
+          if (!category) {
+            throw new AppError(`Category ${split.categoryName} not found`, 404);
+          }
+
+          return split.categoryId;
+        }
+
+        // Otherwise, get or create by name (legacy/manual entry)
+        return getOrCreateCategory(organizationId, split.categoryName);
+      }),
     );
   }
 
@@ -473,8 +551,8 @@ export async function updateTransaction(
 
     // Build update data
     const updateData: Prisma.TransactionUpdateInput = {
-      ...(input.description !== undefined && {
-        description: input.description,
+      ...(input.memo !== undefined && {
+        memo: input.memo,
       }),
       ...(input.amount !== undefined && { amount: input.amount }),
       ...(input.transactionType !== undefined && {
@@ -483,6 +561,15 @@ export async function updateTransaction(
       ...(input.date !== undefined && { date: new Date(input.date) }),
       feeAmount: newFeeAmount,
     };
+
+    // Handle vendor update
+    if (input.vendorId !== undefined) {
+      if (input.vendorId === null) {
+        updateData.vendor = { disconnect: true };
+      } else {
+        updateData.vendor = { connect: { id: input.vendorId } };
+      }
+    }
 
     // Handle destination account update
     if (input.destinationAccountId !== undefined) {
@@ -512,6 +599,7 @@ export async function updateTransaction(
       where: { id: transactionId },
       data: updateData,
       include: {
+        vendor: true,
         splits: {
           include: {
             category: true,
