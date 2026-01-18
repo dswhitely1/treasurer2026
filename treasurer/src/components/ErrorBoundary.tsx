@@ -1,4 +1,6 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react'
+import type { ErrorInfo, ReactNode } from 'react'
+import type React from 'react'
+import { Component } from 'react'
 import { logger } from '@/utils/logger'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -88,41 +90,44 @@ export class ErrorBoundary extends Component<Props, State> {
 
       // Default fallback UI
       return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-          <Card className="max-w-2xl w-full p-8">
+        <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
+          <Card className="w-full max-w-2xl p-8">
             <div className="text-center">
-              <div className="text-6xl mb-4">⚠️</div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              <div className="mb-4 text-6xl">⚠️</div>
+              <h1 className="mb-2 text-2xl font-bold text-gray-900">
                 Oops! Something went wrong
               </h1>
-              <p className="text-gray-600 mb-6">
-                We're sorry, but an unexpected error occurred. Our team has been notified
-                and is working to fix the issue.
+              <p className="mb-6 text-gray-600">
+                We&apos;re sorry, but an unexpected error occurred. Our team has
+                been notified and is working to fix the issue.
               </p>
 
               {this.state.error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-left">
-                  <h3 className="text-sm font-semibold text-red-900 mb-2">Error Details:</h3>
-                  <p className="text-sm text-red-800 font-mono break-all">
+                <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-left">
+                  <h3 className="mb-2 text-sm font-semibold text-red-900">
+                    Error Details:
+                  </h3>
+                  <p className="break-all font-mono text-sm text-red-800">
                     {this.state.error.message}
                   </p>
-                  {process.env.NODE_ENV === 'development' && this.state.error.stack && (
-                    <details className="mt-3">
-                      <summary className="text-sm font-semibold text-red-900 cursor-pointer">
-                        Stack Trace
-                      </summary>
-                      <pre className="mt-2 text-xs text-red-700 overflow-auto max-h-64">
-                        {this.state.error.stack}
-                      </pre>
-                    </details>
-                  )}
+                  {process.env.NODE_ENV === 'development' &&
+                    this.state.error.stack && (
+                      <details className="mt-3">
+                        <summary className="cursor-pointer text-sm font-semibold text-red-900">
+                          Stack Trace
+                        </summary>
+                        <pre className="mt-2 max-h-64 overflow-auto text-xs text-red-700">
+                          {this.state.error.stack}
+                        </pre>
+                      </details>
+                    )}
                   {process.env.NODE_ENV === 'development' &&
                     this.state.errorInfo?.componentStack && (
                       <details className="mt-3">
-                        <summary className="text-sm font-semibold text-red-900 cursor-pointer">
+                        <summary className="cursor-pointer text-sm font-semibold text-red-900">
                           Component Stack
                         </summary>
-                        <pre className="mt-2 text-xs text-red-700 overflow-auto max-h-64">
+                        <pre className="mt-2 max-h-64 overflow-auto text-xs text-red-700">
                           {this.state.errorInfo.componentStack}
                         </pre>
                       </details>
@@ -130,7 +135,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 </div>
               )}
 
-              <div className="flex gap-3 justify-center">
+              <div className="flex justify-center gap-3">
                 <Button onClick={this.handleReset} variant="primary">
                   Try Again
                 </Button>
@@ -145,7 +150,7 @@ export class ErrorBoundary extends Component<Props, State> {
               </div>
 
               {process.env.NODE_ENV === 'development' && (
-                <p className="text-xs text-gray-500 mt-6">
+                <p className="mt-6 text-xs text-gray-500">
                   Development mode: Full error details are shown above
                 </p>
               )}

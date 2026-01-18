@@ -55,7 +55,9 @@ function handleMetric(metric: Metric) {
   // Send to analytics service (e.g., Google Analytics, custom analytics)
   if (window.gtag) {
     window.gtag('event', metric.name, {
-      value: Math.round(metric.name === 'CLS' ? metric.value * 1000 : metric.value),
+      value: Math.round(
+        metric.name === 'CLS' ? metric.value * 1000 : metric.value
+      ),
       metric_id: metric.id,
       metric_value: metric.value,
       metric_delta: metric.delta,
@@ -177,7 +179,7 @@ export function getNavigationTiming() {
     return null
   }
 
-  const [navigation] = performance.getEntriesByType('navigation') as PerformanceNavigationTiming[]
+  const [navigation] = performance.getEntriesByType('navigation')
 
   if (!navigation) {
     return null
@@ -235,12 +237,14 @@ export function logNavigationTiming() {
  * Track resource loading performance
  * Identifies slow-loading resources
  */
-export function getSlowResources(threshold = 1000): PerformanceResourceTiming[] {
+export function getSlowResources(
+  threshold = 1000
+): PerformanceResourceTiming[] {
   if (!performance.getEntriesByType) {
     return []
   }
 
-  const resources = performance.getEntriesByType('resource') as PerformanceResourceTiming[]
+  const resources = performance.getEntriesByType('resource')
 
   return resources.filter((resource) => resource.duration > threshold)
 }
@@ -252,14 +256,17 @@ export function logSlowResources(threshold = 1000) {
   const slowResources = getSlowResources(threshold)
 
   if (slowResources.length > 0) {
-    logger.warn(`Found ${slowResources.length} slow resources (>${threshold}ms)`, {
-      resources: slowResources.map((r) => ({
-        name: r.name,
-        duration: r.duration.toFixed(2),
-        size: r.transferSize,
-        type: r.initiatorType,
-      })),
-    })
+    logger.warn(
+      `Found ${slowResources.length} slow resources (>${threshold}ms)`,
+      {
+        resources: slowResources.map((r) => ({
+          name: r.name,
+          duration: r.duration.toFixed(2),
+          size: r.transferSize,
+          type: r.initiatorType,
+        })),
+      }
+    )
   }
 }
 

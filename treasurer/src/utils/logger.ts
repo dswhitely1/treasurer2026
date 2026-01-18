@@ -39,7 +39,11 @@ class Logger {
     return requestedLevelIndex >= currentLevelIndex
   }
 
-  private createLogEntry(level: LogLevel, message: string, context?: LogContext): LogEntry {
+  private createLogEntry(
+    level: LogLevel,
+    message: string,
+    context?: LogContext
+  ): LogEntry {
     return {
       timestamp: new Date().toISOString(),
       level,
@@ -97,7 +101,10 @@ class Logger {
 
     // For now, we'll just store in a queue that could be sent to backend
     try {
-      const logs = JSON.parse(localStorage.getItem('error_logs') || '[]')
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const logs: LogEntry[] = JSON.parse(
+        localStorage.getItem('error_logs') || '[]'
+      )
       logs.push(entry)
       // Keep only last 50 errors
       if (logs.length > 50) {
@@ -154,7 +161,9 @@ class Logger {
    */
   getStoredErrors(): LogEntry[] {
     try {
-      return JSON.parse(localStorage.getItem('error_logs') || '[]')
+      return JSON.parse(
+        localStorage.getItem('error_logs') || '[]'
+      ) as LogEntry[]
     } catch {
       return []
     }
@@ -185,6 +194,7 @@ export function setupGlobalErrorHandlers() {
       filename: event.filename,
       lineno: event.lineno,
       colno: event.colno,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       error: event.error?.stack,
     })
   })
@@ -192,7 +202,10 @@ export function setupGlobalErrorHandlers() {
   // Catch unhandled promise rejections
   window.addEventListener('unhandledrejection', (event) => {
     logger.error('Unhandled promise rejection', {
-      reason: event.reason instanceof Error ? event.reason.message : String(event.reason),
+      reason:
+        event.reason instanceof Error
+          ? event.reason.message
+          : String(event.reason),
       stack: event.reason instanceof Error ? event.reason.stack : undefined,
     })
   })
@@ -224,8 +237,14 @@ export function createChildLogger(baseContext: LogContext) {
 declare global {
   interface Window {
     Sentry?: {
-      captureMessage: (message: string, options?: { level?: string; extra?: LogContext }) => void
-      captureException: (error: Error, options?: { contexts?: LogContext }) => void
+      captureMessage: (
+        message: string,
+        options?: { level?: string; extra?: LogContext }
+      ) => void
+      captureException: (
+        error: Error,
+        options?: { contexts?: LogContext }
+      ) => void
     }
   }
 }

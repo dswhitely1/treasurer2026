@@ -1,11 +1,14 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-explicit-any */
+// Disable type safety rules for test utilities - 'any' types are necessary for flexible mock store configuration
 /**
  * Test utilities for Vitest + React Testing Library
  *
  * Provides helpers for testing Redux-connected components and custom hooks.
  */
 
-import { PropsWithChildren, ReactElement } from 'react'
-import { render, RenderOptions } from '@testing-library/react'
+import type { PropsWithChildren, ReactElement } from 'react'
+import type { RenderOptions } from '@testing-library/react'
+import { render } from '@testing-library/react'
 import { Provider } from 'react-redux'
 import { configureStore } from '@reduxjs/toolkit'
 import { BrowserRouter } from 'react-router-dom'
@@ -152,9 +155,27 @@ export function createMockReconciliationSummary(overrides = {}) {
       email: 'test@example.com',
     },
     balancesByStatus: [
-      { status: 'UNCLEARED' as const, count: 5, income: 100, expense: 300, net: -200 },
-      { status: 'CLEARED' as const, count: 10, income: 500, expense: 200, net: 300 },
-      { status: 'RECONCILED' as const, count: 15, income: 800, expense: 300, net: 500 },
+      {
+        status: 'UNCLEARED' as const,
+        count: 5,
+        income: 100,
+        expense: 300,
+        net: -200,
+      },
+      {
+        status: 'CLEARED' as const,
+        count: 10,
+        income: 500,
+        expense: 200,
+        net: 300,
+      },
+      {
+        status: 'RECONCILED' as const,
+        count: 15,
+        income: 800,
+        expense: 300,
+        net: 500,
+      },
     ],
     difference: 0,
     ...overrides,
