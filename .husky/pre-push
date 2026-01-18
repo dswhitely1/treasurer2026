@@ -1,25 +1,43 @@
 #!/bin/sh
-# Pre-push hook - runs TypeScript type checking before push
-# Ensures type safety is maintained across all commits being pushed
+# Pre-push hook - runs type checking and tests before push
+# Ensures code quality and test coverage are maintained
 
 . "$(dirname "$0")/_/husky.sh"
 
-echo "Running type checking in treasurer-api..."
+echo "🔍 Running type checking in treasurer-api..."
 pnpm --filter treasurer-api type-check || {
   echo ""
-  echo "Type checking failed in treasurer-api. Please fix the issues and try again."
+  echo "❌ Type checking failed in treasurer-api. Please fix the issues and try again."
   exit 1
 }
+echo "✅ Type checking complete for treasurer-api."
 
-echo "Type checking complete for treasurer-api."
 echo ""
-echo "Running type checking in treasurer..."
+echo "🔍 Running type checking in treasurer..."
 pnpm --filter treasurer type-check || {
   echo ""
-  echo "Type checking failed in treasurer. Please fix the issues and try again."
+  echo "❌ Type checking failed in treasurer. Please fix the issues and try again."
   exit 1
 }
+echo "✅ Type checking complete for treasurer."
 
-echo "Type checking complete for treasurer."
 echo ""
-echo "All type checks passed. Proceeding with push."
+echo "🧪 Running tests in treasurer-api..."
+pnpm --filter treasurer-api test || {
+  echo ""
+  echo "❌ Tests failed in treasurer-api. Please fix the failing tests and try again."
+  exit 1
+}
+echo "✅ All backend tests passed."
+
+echo ""
+echo "🧪 Running tests in treasurer..."
+pnpm --filter treasurer test || {
+  echo ""
+  echo "❌ Tests failed in treasurer. Please fix the failing tests and try again."
+  exit 1
+}
+echo "✅ All frontend tests passed."
+
+echo ""
+echo "🚀 All checks passed. Proceeding with push."

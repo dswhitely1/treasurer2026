@@ -1,4 +1,4 @@
-name: CI Pipeline
+name: Code Quality Check
 
 on:
   push:
@@ -14,35 +14,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  backend:
-    name: Backend Tests and Lint
+  lint:
+    name: Lint and Type Check
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: treasurer_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
-    defaults:
-      run:
-        working-directory: ./treasurer-api
-
-    env:
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/treasurer_test
-      JWT_SECRET: test-secret-key-for-ci-pipeline-min-32-chars
-      JWT_EXPIRES_IN: 1h
-      CORS_ORIGIN: http://localhost:3000
-      NODE_ENV: test
 
     steps:
       - name: Checkout code
@@ -58,87 +32,24 @@ jobs:
         with:
           node-version: '20'
           cache: 'pnpm'
-          cache-dependency-path: './treasurer-api/pnpm-lock.yaml'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Generate Prisma Client
-        run: pnpm db:generate
+      - name: Lint backend
+        run: pnpm --filter treasurer-api lint
 
-      - name: Run database migrations
-        run: npx prisma migrate deploy
+      - name: Lint frontend
+        run: pnpm --filter treasurer lint
 
-      - name: Type checking
-        run: pnpm type-check
+      - name: Type check backend
+        run: pnpm --filter treasurer-api type-check
 
-      - name: Lint
-        run: pnpm lint
+      - name: Type check frontend
+        run: pnpm --filter treasurer type-check
 
-      - name: Run tests with coverage
-        run: pnpm test:coverage
+      - name: Build backend
+        run: pnpm --filter treasurer-api build
 
-      - name: Build
-        run: pnpm build
-
-      - name: Upload coverage artifacts
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: backend-coverage
-          path: ./treasurer-api/coverage/
-          retention-days: 30
-
-  frontend:
-    name: Frontend Tests and Lint
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./treasurer
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 10
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-          cache-dependency-path: './treasurer/pnpm-lock.yaml'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Type checking
-        run: pnpm type-check
-
-      - name: Lint
-        run: pnpm lint
-
-      - name: Run tests with coverage
-        run: pnpm test:coverage
-
-      - name: Build production bundle
-        run: pnpm build
-
-      - name: Upload coverage artifacts
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: frontend-coverage
-          path: ./treasurer/coverage/
-          retention-days: 30
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: frontend-build
-          path: ./treasurer/dist/
-          retention-days: 7
+      - name: Build frontend
+        run: pnpm --filter treasurer build
