@@ -1,0 +1,27 @@
+{
+  "name": "treasurer2026",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Treasurer - Full-stack financial management application",
+  "scripts": {
+    "dev": "pnpm --parallel --filter treasurer --filter treasurer-api dev",
+    "build": "pnpm --filter treasurer-api build && pnpm --filter treasurer build",
+    "test": "pnpm --recursive test",
+    "lint": "pnpm --recursive lint",
+    "type-check": "pnpm --recursive type-check",
+    "prepare": "husky install"
+  },
+  "keywords": [
+    "finance",
+    "accounting",
+    "monorepo"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.8.0"
+  }
+}

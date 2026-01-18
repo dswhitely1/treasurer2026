@@ -1,8 +1,5 @@
-#!/bin/sh
 # Pre-commit hook - runs Prettier and ESLint on staged files using lint-staged
 # Prevents committing code that doesn't meet style and linting standards
-
-. "$(dirname "$0")/_/husky.sh"
 
 # Run lint-staged to format and lint staged files
 pnpm lint-staged

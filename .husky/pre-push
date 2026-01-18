@@ -1,8 +1,5 @@
-#!/bin/sh
 # Pre-push hook - runs type checking and tests before push
 # Ensures code quality and test coverage are maintained
-
-. "$(dirname "$0")/_/husky.sh"
 
 echo "🔍 Running type checking in treasurer-api..."
 pnpm --filter treasurer-api type-check || {

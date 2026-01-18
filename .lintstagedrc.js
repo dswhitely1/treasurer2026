@@ -4,13 +4,15 @@
  */
 
 export default {
-  // Run Prettier and ESLint on TypeScript/TSX files
-  '**/*.{ts,tsx}': ['prettier --write', 'eslint --fix --max-warnings 0'],
+  // Run Prettier and ESLint on TypeScript/TSX files (excluding node_modules and dist)
+  '**/*.{ts,tsx}': (filenames) =>
+    filenames
+      .filter((file) => !file.includes('node_modules') && !file.includes('dist'))
+      .flatMap((file) => [`prettier --write ${file}`, `eslint --fix --max-warnings 0 ${file}`]),
 
-  // Run Prettier on CSS and JSON files (no linting)
-  '**/*.{css,json}': ['prettier --write'],
-
-  // Exclude node_modules and dist directories
-  '!**/node_modules/**': true,
-  '!**/dist/**': true,
+  // Run Prettier on CSS and JSON files (excluding node_modules and dist)
+  '**/*.{css,json}': (filenames) =>
+    filenames
+      .filter((file) => !file.includes('node_modules') && !file.includes('dist'))
+      .map((file) => `prettier --write ${file}`),
 };
