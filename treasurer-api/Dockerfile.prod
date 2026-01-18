@@ -9,10 +9,10 @@ RUN corepack enable && corepack prepare pnpm@latest --activate \
     && apk add --no-cache openssl
 
 # Copy package files
-COPY package.json pnpm-lock.yaml ./
+COPY package.json ./
 
 # Install dependencies
-RUN pnpm install --frozen-lockfile
+RUN pnpm install
 
 # Copy prisma schema
 COPY prisma ./prisma/
@@ -38,18 +38,13 @@ RUN corepack enable && corepack prepare pnpm@latest --activate \
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
 
-# Copy package files from builder
-COPY package.json pnpm-lock.yaml ./
-
-# Install only production dependencies
-RUN pnpm install --frozen-lockfile --prod
-
-# Copy Prisma schema and generated client
+# Copy necessary files from builder
+COPY --from=builder /app/package.json ./
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-
-# Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
+
+# Copy node_modules from builder (includes Prisma client and all dependencies)
+COPY --from=builder /app/node_modules ./node_modules
 
 # Switch to non-root user
 USER nodejs
