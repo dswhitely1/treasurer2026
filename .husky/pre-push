@@ -20,7 +20,7 @@ echo "✅ Type checking complete for treasurer."
 
 echo ""
 echo "🧪 Running tests in treasurer-api..."
-pnpm --filter treasurer-api test || {
+pnpm --filter treasurer-api exec vitest run || {
   echo ""
   echo "❌ Tests failed in treasurer-api. Please fix the failing tests and try again."
   exit 1
@@ -29,7 +29,7 @@ echo "✅ All backend tests passed."
 
 echo ""
 echo "🧪 Running tests in treasurer..."
-pnpm --filter treasurer test || {
+pnpm --filter treasurer exec vitest run || {
   echo ""
   echo "❌ Tests failed in treasurer. Please fix the failing tests and try again."
   exit 1
