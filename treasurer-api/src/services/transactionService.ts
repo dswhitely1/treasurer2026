@@ -1,63 +1,65 @@
-import { Prisma } from '@prisma/client'
-import { prisma } from '../config/database.js'
-import { AppError } from '../middleware/errorHandler.js'
+import { Prisma } from "@prisma/client";
+import { prisma } from "../config/database.js";
+import { AppError } from "../middleware/errorHandler.js";
 import type {
   CreateTransactionDto,
   UpdateTransactionDto,
   TransactionType,
   TransactionQueryDto,
-} from '../schemas/transaction.js'
+} from "../schemas/transaction.js";
 
 export interface TransactionSplitInfo {
-  id: string
-  amount: string
-  categoryId: string
-  categoryName: string
+  id: string;
+  amount: string;
+  categoryId: string;
+  categoryName: string;
 }
 
 export interface TransactionInfo {
-  id: string
-  description: string
-  amount: string
-  transactionType: TransactionType
-  date: string
-  feeAmount: string | null
-  accountId: string
-  destinationAccountId: string | null
-  status: string
-  clearedAt: string | null
-  reconciledAt: string | null
-  splits: TransactionSplitInfo[]
-  createdAt: string
-  updatedAt: string
+  id: string;
+  description: string;
+  amount: string;
+  transactionType: TransactionType;
+  date: string;
+  feeAmount: string | null;
+  accountId: string;
+  destinationAccountId: string | null;
+  status: string;
+  clearedAt: string | null;
+  reconciledAt: string | null;
+  splits: TransactionSplitInfo[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface TransactionWithSplits {
-  id: string
-  description: string
-  amount: Prisma.Decimal
-  transactionType: string
-  date: Date
-  feeAmount: Prisma.Decimal | null
-  accountId: string
-  destinationAccountId: string | null
-  status: string
-  clearedAt: Date | null
-  reconciledAt: Date | null
-  createdAt: Date
-  updatedAt: Date
+  id: string;
+  description: string;
+  amount: Prisma.Decimal;
+  transactionType: string;
+  date: Date;
+  feeAmount: Prisma.Decimal | null;
+  accountId: string;
+  destinationAccountId: string | null;
+  status: string;
+  clearedAt: Date | null;
+  reconciledAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
   splits: Array<{
-    id: string
-    amount: Prisma.Decimal
-    categoryId: string
+    id: string;
+    amount: Prisma.Decimal;
+    categoryId: string;
     category: {
-      id: string
-      name: string
-    }
-  }>
+      id: string;
+      name: string;
+    };
+  }>;
 }
 
-function formatTransaction(transaction: TransactionWithSplits): TransactionInfo {
+function formatTransaction(
+  transaction: TransactionWithSplits,
+): TransactionInfo {
   return {
     id: transaction.id,
     description: transaction.description,
@@ -78,14 +80,14 @@ function formatTransaction(transaction: TransactionWithSplits): TransactionInfo 
     })),
     createdAt: transaction.createdAt.toISOString(),
     updatedAt: transaction.updatedAt.toISOString(),
-  }
+  };
 }
 
 async function getOrCreateCategory(
   organizationId: string,
-  categoryName: string
+  categoryName: string,
 ): Promise<string> {
-  const normalizedName = categoryName.trim()
+  const normalizedName = categoryName.trim();
 
   const existing = await prisma.category.findUnique({
     where: {
@@ -94,10 +96,10 @@ async function getOrCreateCategory(
         name: normalizedName,
       },
     },
-  })
+  });
 
   if (existing) {
-    return existing.id
+    return existing.id;
   }
 
   const category = await prisma.category.create({
@@ -105,15 +107,15 @@ async function getOrCreateCategory(
       name: normalizedName,
       organizationId,
     },
-  })
+  });
 
-  return category.id
+  return category.id;
 }
 
 export async function createTransaction(
   organizationId: string,
   accountId: string,
-  input: CreateTransactionDto
+  input: CreateTransactionDto,
 ): Promise<TransactionInfo> {
   // Verify source account exists and belongs to org
   const account = await prisma.account.findFirst({
@@ -121,21 +123,24 @@ export async function createTransaction(
       id: accountId,
       organizationId,
     },
-  })
+  });
 
   if (!account) {
-    throw new AppError('Account not found', 404)
+    throw new AppError("Account not found", 404);
   }
 
   // For TRANSFER transactions, validate destination account
-  let destinationAccount = null
-  if (input.transactionType === 'TRANSFER') {
+  let destinationAccount = null;
+  if (input.transactionType === "TRANSFER") {
     if (!input.destinationAccountId) {
-      throw new AppError('Destination account is required for transfers', 400)
+      throw new AppError("Destination account is required for transfers", 400);
     }
 
     if (input.destinationAccountId === accountId) {
-      throw new AppError('Source and destination accounts must be different', 400)
+      throw new AppError(
+        "Source and destination accounts must be different",
+        400,
+      );
     }
 
     destinationAccount = await prisma.account.findFirst({
@@ -143,23 +148,25 @@ export async function createTransaction(
         id: input.destinationAccountId,
         organizationId,
       },
-    })
+    });
 
     if (!destinationAccount) {
-      throw new AppError('Destination account not found', 404)
+      throw new AppError("Destination account not found", 404);
     }
   }
 
   // Calculate fee if applicable (fees apply to source account)
-  let feeAmount: number | null = null
+  let feeAmount: number | null = null;
   if (input.applyFee && account.transactionFee) {
-    feeAmount = account.transactionFee.toNumber()
+    feeAmount = account.transactionFee.toNumber();
   }
 
   // Get or create categories
   const categoryIds = await Promise.all(
-    input.splits.map((split) => getOrCreateCategory(organizationId, split.categoryName))
-  )
+    input.splits.map((split) =>
+      getOrCreateCategory(organizationId, split.categoryName),
+    ),
+  );
 
   // Create transaction with splits in a transaction
   const transaction = await prisma.$transaction(async (tx) => {
@@ -167,7 +174,7 @@ export async function createTransaction(
       data: {
         description: input.description,
         amount: input.amount,
-        transactionType: input.transactionType ?? 'EXPENSE',
+        transactionType: input.transactionType,
         date: input.date ? new Date(input.date) : new Date(),
         feeAmount,
         account: {
@@ -194,12 +201,12 @@ export async function createTransaction(
           },
         },
       },
-    })
+    });
 
     // Update account balances based on transaction type
-    if (input.transactionType === 'TRANSFER') {
+    if (input.transactionType === "TRANSFER") {
       // TRANSFER: subtract from source, add to destination
-      const sourceDeduction = input.amount + (feeAmount ?? 0)
+      const sourceDeduction = input.amount + (feeAmount ?? 0);
 
       await tx.account.update({
         where: { id: accountId },
@@ -208,24 +215,23 @@ export async function createTransaction(
             decrement: sourceDeduction,
           },
         },
-      })
+      });
 
+      // destinationAccountId is guaranteed by Zod validation for TRANSFER transactions
       await tx.account.update({
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         where: { id: input.destinationAccountId! },
         data: {
           balance: {
             increment: input.amount,
           },
         },
-      })
+      });
     } else {
       // INCOME or EXPENSE
-      const totalAmount = input.transactionType === 'INCOME'
-        ? input.amount
-        : -input.amount
-      const totalWithFee = feeAmount
-        ? totalAmount - feeAmount
-        : totalAmount
+      const totalAmount =
+        input.transactionType === "INCOME" ? input.amount : -input.amount;
+      const totalWithFee = feeAmount ? totalAmount - feeAmount : totalAmount;
 
       await tx.account.update({
         where: { id: accountId },
@@ -234,19 +240,19 @@ export async function createTransaction(
             increment: totalWithFee,
           },
         },
-      })
+      });
     }
 
-    return newTransaction
-  })
+    return newTransaction;
+  });
 
-  return formatTransaction(transaction)
+  return formatTransaction(transaction);
 }
 
 export async function getAccountTransactions(
   organizationId: string,
   accountId: string,
-  query: TransactionQueryDto
+  query: TransactionQueryDto,
 ): Promise<{ transactions: TransactionInfo[]; total: number }> {
   // Verify account exists and belongs to org
   const account = await prisma.account.findFirst({
@@ -254,10 +260,10 @@ export async function getAccountTransactions(
       id: accountId,
       organizationId,
     },
-  })
+  });
 
   if (!account) {
-    throw new AppError('Account not found', 404)
+    throw new AppError("Account not found", 404);
   }
 
   // Build where clause
@@ -270,18 +276,18 @@ export async function getAccountTransactions(
       splits: {
         some: {
           category: {
-            name: { contains: query.category, mode: 'insensitive' },
+            name: { contains: query.category, mode: "insensitive" },
           },
         },
       },
     }),
-  }
+  };
 
   // Add status filtering
   if (query.status) {
-    where.status = query.status
+    where.status = query.status;
   } else if (query.statuses && query.statuses.length > 0) {
-    where.status = { in: query.statuses }
+    where.status = { in: query.statuses };
   }
 
   // Add clearedAt date range filtering
@@ -289,7 +295,7 @@ export async function getAccountTransactions(
     where.clearedAt = {
       ...(query.clearedAfter && { gte: new Date(query.clearedAfter) }),
       ...(query.clearedBefore && { lte: new Date(query.clearedBefore) }),
-    }
+    };
   }
 
   // Add reconciledAt date range filtering
@@ -297,7 +303,7 @@ export async function getAccountTransactions(
     where.reconciledAt = {
       ...(query.reconciledAfter && { gte: new Date(query.reconciledAfter) }),
       ...(query.reconciledBefore && { lte: new Date(query.reconciledBefore) }),
-    }
+    };
   }
 
   const [transactions, total] = await Promise.all([
@@ -310,23 +316,23 @@ export async function getAccountTransactions(
           },
         },
       },
-      orderBy: { date: 'desc' },
+      orderBy: { date: "desc" },
       take: query.limit,
       skip: query.offset,
     }),
     prisma.transaction.count({ where }),
-  ])
+  ]);
 
   return {
     transactions: transactions.map(formatTransaction),
     total,
-  }
+  };
 }
 
 export async function getTransaction(
   organizationId: string,
   accountId: string,
-  transactionId: string
+  transactionId: string,
 ): Promise<TransactionInfo> {
   // Verify account exists and belongs to org
   const account = await prisma.account.findFirst({
@@ -334,10 +340,10 @@ export async function getTransaction(
       id: accountId,
       organizationId,
     },
-  })
+  });
 
   if (!account) {
-    throw new AppError('Account not found', 404)
+    throw new AppError("Account not found", 404);
   }
 
   const transaction = await prisma.transaction.findFirst({
@@ -352,20 +358,20 @@ export async function getTransaction(
         },
       },
     },
-  })
+  });
 
   if (!transaction) {
-    throw new AppError('Transaction not found', 404)
+    throw new AppError("Transaction not found", 404);
   }
 
-  return formatTransaction(transaction)
+  return formatTransaction(transaction);
 }
 
 export async function updateTransaction(
   organizationId: string,
   accountId: string,
   transactionId: string,
-  input: UpdateTransactionDto
+  input: UpdateTransactionDto,
 ): Promise<TransactionInfo> {
   // Verify account exists and belongs to org
   const account = await prisma.account.findFirst({
@@ -373,10 +379,10 @@ export async function updateTransaction(
       id: accountId,
       organizationId,
     },
-  })
+  });
 
   if (!account) {
-    throw new AppError('Account not found', 404)
+    throw new AppError("Account not found", 404);
   }
 
   const existing = await prisma.transaction.findFirst({
@@ -387,44 +393,48 @@ export async function updateTransaction(
     include: {
       splits: true,
     },
-  })
+  });
 
   if (!existing) {
-    throw new AppError('Transaction not found', 404)
+    throw new AppError("Transaction not found", 404);
   }
 
   // Determine old and new transaction types
-  const oldType = existing.transactionType
-  const newType = input.transactionType ?? oldType
-  const oldAmount = existing.amount.toNumber()
-  const newAmount = input.amount ?? oldAmount
-  const oldFee = existing.feeAmount?.toNumber() ?? 0
+  const oldType = existing.transactionType;
+  const newType = input.transactionType ?? oldType;
+  const oldAmount = existing.amount.toNumber();
+  const newAmount = input.amount ?? oldAmount;
+  const oldFee = existing.feeAmount?.toNumber() ?? 0;
 
   // Calculate new fee
-  let newFeeAmount: number | null = existing.feeAmount?.toNumber() ?? null
+  let newFeeAmount: number | null = existing.feeAmount?.toNumber() ?? null;
   if (input.applyFee !== undefined) {
     if (input.applyFee && account.transactionFee) {
-      newFeeAmount = account.transactionFee.toNumber()
+      newFeeAmount = account.transactionFee.toNumber();
     } else if (!input.applyFee) {
-      newFeeAmount = null
+      newFeeAmount = null;
     }
   }
-  const newFee = newFeeAmount ?? 0
+  const newFee = newFeeAmount ?? 0;
 
   // Determine destination account changes
-  const oldDestinationId = existing.destinationAccountId
+  const oldDestinationId = existing.destinationAccountId;
   // Use undefined to mean "no change", null to mean "remove", string to mean "set"
-  const newDestinationId = input.destinationAccountId === undefined
-    ? oldDestinationId
-    : input.destinationAccountId
+  const newDestinationId =
+    input.destinationAccountId === undefined
+      ? oldDestinationId
+      : input.destinationAccountId;
 
   // Validate TRANSFER requirements
-  if (newType === 'TRANSFER') {
+  if (newType === "TRANSFER") {
     if (!newDestinationId) {
-      throw new AppError('Destination account is required for transfers', 400)
+      throw new AppError("Destination account is required for transfers", 400);
     }
     if (newDestinationId === accountId) {
-      throw new AppError('Source and destination accounts must be different', 400)
+      throw new AppError(
+        "Source and destination accounts must be different",
+        400,
+      );
     }
     // Verify destination account exists and belongs to org
     const destAccount = await prisma.account.findFirst({
@@ -432,20 +442,25 @@ export async function updateTransaction(
         id: newDestinationId,
         organizationId,
       },
-    })
+    });
     if (!destAccount) {
-      throw new AppError('Destination account not found', 404)
+      throw new AppError("Destination account not found", 404);
     }
   } else if (newDestinationId) {
-    throw new AppError('Destination account should only be provided for transfer transactions', 400)
+    throw new AppError(
+      "Destination account should only be provided for transfer transactions",
+      400,
+    );
   }
 
   // Prepare splits update if provided
-  let categoryIds: string[] = []
+  let categoryIds: string[] = [];
   if (input.splits) {
     categoryIds = await Promise.all(
-      input.splits.map((split) => getOrCreateCategory(organizationId, split.categoryName))
-    )
+      input.splits.map((split) =>
+        getOrCreateCategory(organizationId, split.categoryName),
+      ),
+    );
   }
 
   const transaction = await prisma.$transaction(async (tx) => {
@@ -453,24 +468,30 @@ export async function updateTransaction(
     if (input.splits) {
       await tx.transactionSplit.deleteMany({
         where: { transactionId },
-      })
+      });
     }
 
     // Build update data
     const updateData: Prisma.TransactionUpdateInput = {
-      ...(input.description !== undefined && { description: input.description }),
+      ...(input.description !== undefined && {
+        description: input.description,
+      }),
       ...(input.amount !== undefined && { amount: input.amount }),
-      ...(input.transactionType !== undefined && { transactionType: input.transactionType }),
+      ...(input.transactionType !== undefined && {
+        transactionType: input.transactionType,
+      }),
       ...(input.date !== undefined && { date: new Date(input.date) }),
       feeAmount: newFeeAmount,
-    }
+    };
 
     // Handle destination account update
     if (input.destinationAccountId !== undefined) {
       if (input.destinationAccountId === null) {
-        updateData.destinationAccount = { disconnect: true }
+        updateData.destinationAccount = { disconnect: true };
       } else {
-        updateData.destinationAccount = { connect: { id: input.destinationAccountId } }
+        updateData.destinationAccount = {
+          connect: { id: input.destinationAccountId },
+        };
       }
     }
 
@@ -483,7 +504,7 @@ export async function updateTransaction(
             connect: { id: categoryIds[index] },
           },
         })),
-      }
+      };
     }
 
     // Update transaction
@@ -497,24 +518,24 @@ export async function updateTransaction(
           },
         },
       },
-    })
+    });
 
     // Handle balance adjustments based on old and new transaction types
-    const wasTransfer = oldType === 'TRANSFER'
-    const isTransfer = newType === 'TRANSFER'
+    const wasTransfer = oldType === "TRANSFER";
+    const isTransfer = newType === "TRANSFER";
 
     if (wasTransfer && isTransfer) {
       // TRANSFER -> TRANSFER: Handle changes to amount, fee, or destination
-      const oldSourceDeduction = oldAmount + oldFee
-      const newSourceDeduction = newAmount + newFee
+      const oldSourceDeduction = oldAmount + oldFee;
+      const newSourceDeduction = newAmount + newFee;
 
       // Adjust source account
-      const sourceAdjustment = oldSourceDeduction - newSourceDeduction
+      const sourceAdjustment = oldSourceDeduction - newSourceDeduction;
       if (sourceAdjustment !== 0) {
         await tx.account.update({
           where: { id: accountId },
           data: { balance: { increment: sourceAdjustment } },
-        })
+        });
       }
 
       // Handle destination changes
@@ -524,89 +545,93 @@ export async function updateTransaction(
           await tx.account.update({
             where: { id: oldDestinationId },
             data: { balance: { decrement: oldAmount } },
-          })
+          });
         }
         // Add amount to new destination
         if (newDestinationId) {
           await tx.account.update({
             where: { id: newDestinationId },
             data: { balance: { increment: newAmount } },
-          })
+          });
         }
       } else if (oldAmount !== newAmount && newDestinationId) {
         // Same destination, different amount
-        const destAdjustment = newAmount - oldAmount
+        const destAdjustment = newAmount - oldAmount;
         await tx.account.update({
           where: { id: newDestinationId },
           data: { balance: { increment: destAdjustment } },
-        })
+        });
       }
     } else if (wasTransfer && !isTransfer) {
       // TRANSFER -> INCOME/EXPENSE: Reverse transfer, apply new type
       // Reverse old transfer: add back to source, subtract from destination
-      const oldSourceDeduction = oldAmount + oldFee
+      const oldSourceDeduction = oldAmount + oldFee;
       await tx.account.update({
         where: { id: accountId },
         data: { balance: { increment: oldSourceDeduction } },
-      })
+      });
       if (oldDestinationId) {
         await tx.account.update({
           where: { id: oldDestinationId },
           data: { balance: { decrement: oldAmount } },
-        })
+        });
       }
 
       // Apply new INCOME/EXPENSE impact
-      const newImpact = newType === 'INCOME' ? newAmount - newFee : -(newAmount + newFee)
+      const newImpact =
+        newType === "INCOME" ? newAmount - newFee : -(newAmount + newFee);
       await tx.account.update({
         where: { id: accountId },
         data: { balance: { increment: newImpact } },
-      })
+      });
     } else if (!wasTransfer && isTransfer) {
       // INCOME/EXPENSE -> TRANSFER: Reverse old type, apply transfer
       // Reverse old INCOME/EXPENSE
-      const oldImpact = oldType === 'INCOME' ? oldAmount - oldFee : -(oldAmount + oldFee)
+      const oldImpact =
+        oldType === "INCOME" ? oldAmount - oldFee : -(oldAmount + oldFee);
       await tx.account.update({
         where: { id: accountId },
         data: { balance: { decrement: oldImpact } },
-      })
+      });
 
       // Apply new TRANSFER
-      const newSourceDeduction = newAmount + newFee
+      const newSourceDeduction = newAmount + newFee;
       await tx.account.update({
         where: { id: accountId },
         data: { balance: { decrement: newSourceDeduction } },
-      })
+      });
       if (newDestinationId) {
         await tx.account.update({
           where: { id: newDestinationId },
           data: { balance: { increment: newAmount } },
-        })
+        });
       }
     } else {
       // INCOME/EXPENSE -> INCOME/EXPENSE: Original logic
-      const oldImpact = oldType === 'INCOME' ? oldAmount - oldFee : -(oldAmount + oldFee)
-      const newImpact = newType === 'INCOME' ? newAmount - newFee : -(newAmount + newFee)
-      const adjustment = newImpact - oldImpact
+      const oldImpact =
+        oldType === "INCOME" ? oldAmount - oldFee : -(oldAmount + oldFee);
+      const newImpact =
+        newType === "INCOME" ? newAmount - newFee : -(newAmount + newFee);
+      const adjustment = newImpact - oldImpact;
 
       if (adjustment !== 0) {
         await tx.account.update({
           where: { id: accountId },
           data: { balance: { increment: adjustment } },
-        })
+        });
       }
     }
 
-    return updated
-  })
+    return updated;
+  });
 
-  return formatTransaction(transaction)
+  return formatTransaction(transaction);
 }
 
 export async function deleteTransaction(
   organizationId: string,
   accountId: string,
-  transactionId: string
+  transactionId: string,
 ): Promise<void> {
   // Verify account exists and belongs to org
   const account = await prisma.account.findFirst({
@@ -614,10 +639,10 @@ export async function deleteTransaction(
       id: accountId,
       organizationId,
     },
-  })
+  });
 
   if (!account) {
-    throw new AppError('Account not found', 404)
+    throw new AppError("Account not found", 404);
   }
 
   const existing = await prisma.transaction.findFirst({
@@ -625,20 +650,21 @@ export async function deleteTransaction(
       id: transactionId,
       accountId,
     },
-  })
+  });
 
   if (!existing) {
-    throw new AppError('Transaction not found', 404)
+    throw new AppError("Transaction not found", 404);
   }
 
   await prisma.$transaction(async (tx) => {
     await tx.transaction.delete({
       where: { id: transactionId },
-    })
+    });
 
-    if (existing.transactionType === 'TRANSFER') {
+    if (existing.transactionType === "TRANSFER") {
       // Reverse TRANSFER: add back to source, subtract from destination
-      const sourceReversal = existing.amount.toNumber() + (existing.feeAmount?.toNumber() ?? 0)
+      const sourceReversal =
+        existing.amount.toNumber() + (existing.feeAmount?.toNumber() ?? 0);
 
       await tx.account.update({
         where: { id: accountId },
@@ -647,7 +673,7 @@ export async function deleteTransaction(
             increment: sourceReversal,
           },
         },
-      })
+      });
 
       if (existing.destinationAccountId) {
         await tx.account.update({
@@ -657,15 +683,16 @@ export async function deleteTransaction(
               decrement: existing.amount.toNumber(),
             },
           },
-        })
+        });
       }
     } else {
       // Reverse INCOME or EXPENSE
-      const amountImpact = existing.transactionType === 'INCOME'
-        ? -existing.amount.toNumber()
-        : existing.amount.toNumber()
-      const feeReversal = existing.feeAmount?.toNumber() ?? 0
-      const totalReversal = amountImpact + feeReversal
+      const amountImpact =
+        existing.transactionType === "INCOME"
+          ? -existing.amount.toNumber()
+          : existing.amount.toNumber();
+      const feeReversal = existing.feeAmount?.toNumber() ?? 0;
+      const totalReversal = amountImpact + feeReversal;
 
       await tx.account.update({
         where: { id: accountId },
@@ -674,7 +701,7 @@ export async function deleteTransaction(
             increment: totalReversal,
           },
         },
-      })
+      });
     }
-  })
+  });
 }

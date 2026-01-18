@@ -1,6 +1,8 @@
-import { Prisma } from '@prisma/client'
-import { prisma } from './database.js'
-import { logQuery } from '../utils/logger.js'
+/* eslint-disable @typescript-eslint/no-deprecated, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/restrict-template-expressions, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unnecessary-type-parameters */
+// Disable rules for Prisma middleware ($use is deprecated but still functional, middleware uses any types)
+import { Prisma } from "@prisma/client";
+import { prisma } from "./database.js";
+import { logQuery } from "../utils/logger.js";
 
 /**
  * Add Prisma middleware to log slow queries
@@ -8,21 +10,21 @@ import { logQuery } from '../utils/logger.js'
  */
 export function setupPrismaLogging() {
   prisma.$use(async (params: Prisma.MiddlewareParams, next) => {
-    const before = Date.now()
+    const before = Date.now();
 
-    const result = await next(params)
+    const result = await next(params);
 
-    const after = Date.now()
-    const duration = after - before
+    const after = Date.now();
+    const duration = after - before;
 
     // Create a readable query description
-    const query = `${params.model}.${params.action}`
+    const query = `${params.model}.${params.action}`;
 
     // Log slow queries (>100ms) as warnings
-    logQuery(query, duration, 100)
+    logQuery(query, duration, 100);
 
-    return result
-  })
+    return result;
+  });
 }
 
 /**
@@ -30,54 +32,54 @@ export function setupPrismaLogging() {
  * Use sparingly and only for data that doesn't change frequently
  */
 class QueryCache {
-  private cache: Map<string, { data: unknown; expires: number }> = new Map()
-  private readonly defaultTTL = 60000 // 1 minute default
+  private cache: Map<string, { data: unknown; expires: number }> = new Map();
+  private readonly defaultTTL = 60000; // 1 minute default
 
   set(key: string, data: unknown, ttl: number = this.defaultTTL) {
     this.cache.set(key, {
       data,
       expires: Date.now() + ttl,
-    })
+    });
   }
 
   get<T>(key: string): T | null {
-    const entry = this.cache.get(key)
+    const entry = this.cache.get(key);
 
     if (!entry) {
-      return null
+      return null;
     }
 
     if (Date.now() > entry.expires) {
-      this.cache.delete(key)
-      return null
+      this.cache.delete(key);
+      return null;
     }
 
-    return entry.data as T
+    return entry.data as T;
   }
 
   delete(key: string) {
-    this.cache.delete(key)
+    this.cache.delete(key);
   }
 
   clear() {
-    this.cache.clear()
+    this.cache.clear();
   }
 
   // Periodically clean expired entries
   startCleanup(interval = 300000) {
     // 5 minutes
     setInterval(() => {
-      const now = Date.now()
+      const now = Date.now();
       for (const [key, entry] of this.cache.entries()) {
         if (now > entry.expires) {
-          this.cache.delete(key)
+          this.cache.delete(key);
         }
       }
-    }, interval)
+    }, interval);
   }
 }
 
-export const queryCache = new QueryCache()
+export const queryCache = new QueryCache();
 
 /**
  * Helper function to cache query results
@@ -91,21 +93,21 @@ export const queryCache = new QueryCache()
 export async function cacheQuery<T>(
   key: string,
   queryFn: () => Promise<T>,
-  ttl?: number
+  ttl?: number,
 ): Promise<T> {
   // Check cache first
-  const cached = queryCache.get<T>(key)
+  const cached = queryCache.get<T>(key);
   if (cached !== null) {
-    return cached
+    return cached;
   }
 
   // Execute query
-  const result = await queryFn()
+  const result = await queryFn();
 
   // Cache result
-  queryCache.set(key, result, ttl)
+  queryCache.set(key, result, ttl);
 
-  return result
+  return result;
 }
 
 /**
@@ -113,10 +115,10 @@ export async function cacheQuery<T>(
  * Example: invalidateCachePattern('org:123') will delete all keys starting with 'org:123'
  */
 export function invalidateCachePattern(pattern: string) {
-  const keys = Array.from(queryCache['cache'].keys())
+  const keys = Array.from(queryCache["cache"].keys());
   for (const key of keys) {
     if (key.startsWith(pattern)) {
-      queryCache.delete(key)
+      queryCache.delete(key);
     }
   }
 }
