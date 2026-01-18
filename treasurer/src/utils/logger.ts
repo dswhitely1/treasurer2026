@@ -111,9 +111,47 @@ class Logger {
         logs.shift()
       }
       localStorage.setItem('error_logs', JSON.stringify(logs))
-    } catch (error) {
-      // Silently fail if localStorage is not available
-      console.error('Failed to store error log', error)
+    } catch (storageError) {
+      // localStorage failed - attempt fallback to backend
+      console.error('Failed to store error log in localStorage', storageError)
+
+      // Fallback: Send error directly to backend logging endpoint
+      this.sendErrorToBackend(entry, storageError).catch(() => {
+        // If backend also fails, error is lost - last resort console.error already done above
+      })
+    }
+  }
+
+  /**
+   * Fallback method to send errors to backend when localStorage fails
+   * This ensures critical errors are not lost when local storage is unavailable
+   */
+  private async sendErrorToBackend(
+    entry: LogEntry,
+    storageError: unknown
+  ): Promise<void> {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || '/api'
+
+      await fetch(`${apiUrl}/client-logs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          log: entry,
+          storageFailure: {
+            message:
+              storageError instanceof Error
+                ? storageError.message
+                : String(storageError),
+            timestamp: new Date().toISOString(),
+          },
+        }),
+      })
+    } catch {
+      // Silently fail - this is the last fallback
+      // Console.error already logged in the catch block above
     }
   }
 

@@ -5,6 +5,14 @@ kind: Kustomization
 bases:
   - ../../
 
+# IMPORTANT: Secrets Management
+# The base secrets.yaml contains empty values by design.
+# For production deployment:
+# 1. Create secrets-prod.yaml (gitignored) with actual values, OR
+# 2. Use sealed secrets: kubeseal <secrets-prod.yaml >sealed-secrets.yaml, OR
+# 3. Use external secrets operator to sync from vault/AWS Secrets Manager
+# Never commit actual secrets to git!
+
 # Override images for production
 images:
   - name: ghcr.io/treasurer/api
