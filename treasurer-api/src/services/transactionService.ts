@@ -18,7 +18,7 @@ export interface TransactionSplitInfo {
 
 export interface TransactionInfo {
   id: string;
-  description: string;
+  description: string | null;
   memo: string | null;
   amount: string;
   transactionType: TransactionType;
