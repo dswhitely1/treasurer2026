@@ -7,10 +7,10 @@ RUN corepack enable && corepack prepare pnpm@latest --activate \
     && apk add --no-cache openssl
 
 # Copy package files
-COPY package.json pnpm-lock.yaml ./
+COPY package.json ./
 
 # Install dependencies
-RUN pnpm install --frozen-lockfile
+RUN pnpm install
 
 # Copy prisma schema for generation
 COPY prisma ./prisma/

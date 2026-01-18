@@ -8,10 +8,10 @@ WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # Copy package files
-COPY package.json pnpm-lock.yaml ./
+COPY package.json ./
 
 # Install dependencies
-RUN pnpm install --frozen-lockfile
+RUN pnpm install
 
 # Copy source code
 COPY . .
@@ -24,9 +24,8 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install pnpm and serve package for serving static files
-RUN corepack enable && corepack prepare pnpm@latest --activate \
-    && pnpm add -g serve
+# Install serve globally using npm (simpler than pnpm for global packages)
+RUN npm install -g serve@14.2.4
 
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
