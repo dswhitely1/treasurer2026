@@ -188,7 +188,7 @@ model Category {
   children     Category[]         @relation("CategoryHierarchy")
   splits       TransactionSplit[]
 
-  @@unique([organizationId, name])
+  @@unique([organizationId, parentId, name])
   @@index([organizationId])
   @@index([parentId])
   @@index([organizationId, parentId])
