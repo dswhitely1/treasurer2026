@@ -447,12 +447,15 @@ export async function updateCategory(
 
   // Update category and descendants if parent changed
   if (input.parentId !== undefined && input.parentId !== existing.parentId) {
+    // Capture parentId for type safety in transaction callback
+    const newParentId = input.parentId;
+
     // Wrap entire operation in transaction to prevent race conditions
     const category = await prisma.$transaction(async (tx) => {
       // Calculate new depth within transaction to avoid race conditions
       const newDepth = await calculateCategoryDepth(
         organizationId,
-        input.parentId,
+        newParentId,
         tx,
       );
       const depthDelta = newDepth - existing.depth;
@@ -462,7 +465,7 @@ export async function updateCategory(
         where: { id: categoryId },
         data: {
           ...(input.name !== undefined && { name: input.name }),
-          parentId: input.parentId,
+          parentId: newParentId,
           depth: newDepth,
         },
       });

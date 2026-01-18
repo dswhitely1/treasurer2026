@@ -53,7 +53,6 @@ export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
     stack: err instanceof Error ? err.stack : undefined,
     method: req.method,
     url: req.originalUrl || req.url,
-    // @ts-expect-error - user may not exist on request
     userId: req.user?.id,
     body: req.method !== "GET" ? req.body : undefined,
     query: req.query,
