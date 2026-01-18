@@ -1,8 +1,5 @@
-#!/bin/sh
 # Commit-msg hook - validates commit message format using conventional commits
 # Ensures consistent commit messaging across the team
-
-. "$(dirname "$0")/_/husky.sh"
 
 # Color codes for output
 RED='\033[0;31m'
