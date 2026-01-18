@@ -111,9 +111,18 @@ describe("Vendor Service", () => {
   describe("getOrganizationVendors", () => {
     beforeEach(async () => {
       // Create test vendors
-      await createVendor(orgId, { name: "Acme Corp", memo: "Office supplies" });
-      await createVendor(orgId, { name: "Beta Inc", memo: "Technology" });
-      await createVendor(orgId, { name: "Gamma LLC", memo: "Consulting" });
+      await createVendor(orgId, {
+        name: "Acme Corp",
+        description: "Office supplies",
+      });
+      await createVendor(orgId, {
+        name: "Beta Inc",
+        description: "Technology",
+      });
+      await createVendor(orgId, {
+        name: "Gamma LLC",
+        description: "Consulting",
+      });
     });
 
     it("should return all vendors for organization", async () => {
@@ -242,7 +251,7 @@ describe("Vendor Service", () => {
     beforeEach(async () => {
       const vendor = await createVendor(orgId, {
         name: "Test Vendor",
-        memo: "Test description",
+        description: "Test description",
       });
       vendorId = vendor.id;
     });
@@ -323,7 +332,7 @@ describe("Vendor Service", () => {
     beforeEach(async () => {
       const vendor = await createVendor(orgId, {
         name: "Original Name",
-        memo: "Original description",
+        description: "Original description",
       });
       vendorId = vendor.id;
     });
@@ -339,7 +348,7 @@ describe("Vendor Service", () => {
 
     it("should update vendor description", async () => {
       const updated = await updateVendor(orgId, vendorId, {
-        memo: "Updated description",
+        description: "Updated description",
       });
 
       expect(updated.name).toBe("Original Name");
@@ -349,7 +358,7 @@ describe("Vendor Service", () => {
     it("should update both name and description", async () => {
       const updated = await updateVendor(orgId, vendorId, {
         name: "New Name",
-        memo: "New description",
+        description: "New description",
       });
 
       expect(updated.name).toBe("New Name");
