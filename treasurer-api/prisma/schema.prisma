@@ -43,6 +43,7 @@ model Organization {
   members    OrganizationMember[]
   accounts   Account[]
   categories Category[]
+  vendors    Vendor[]
 
   @@map("organizations")
 }
@@ -108,7 +109,7 @@ enum TransactionStatus {
 
 model Transaction {
   id                   String            @id @default(uuid())
-  description          String
+  memo                 String?
   amount               Decimal           @db.Decimal(19, 4)
   transactionType      TransactionType   @default(EXPENSE) @map("transaction_type")
   date                 DateTime          @default(now())
@@ -118,16 +119,19 @@ model Transaction {
   reconciledAt         DateTime?         @map("reconciled_at")
   accountId            String            @map("account_id")
   destinationAccountId String?           @map("destination_account_id")
+  vendorId             String?           @map("vendor_id")
   createdAt            DateTime          @default(now()) @map("created_at")
   updatedAt            DateTime          @updatedAt @map("updated_at")
 
   account            Account                    @relation("SourceTransactions", fields: [accountId], references: [id], onDelete: Cascade)
   destinationAccount Account?                   @relation("DestinationTransactions", fields: [destinationAccountId], references: [id], onDelete: SetNull)
+  vendor             Vendor?                    @relation(fields: [vendorId], references: [id], onDelete: SetNull)
   splits             TransactionSplit[]
   statusHistory      TransactionStatusHistory[]
 
   @@index([accountId])
   @@index([destinationAccountId])
+  @@index([vendorId])
   @@index([date])
   @@index([status])
   @@index([accountId, status])
@@ -169,16 +173,41 @@ model TransactionSplit {
 }
 
 model Category {
+  id             String    @id @default(uuid())
+  name           String
+  parentId       String?   @map("parent_id")
+  depth          Int       @default(0)
+  path           String?
+  isActive       Boolean   @default(true) @map("is_active")
+  organizationId String    @map("organization_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parent       Category?          @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children     Category[]         @relation("CategoryHierarchy")
+  splits       TransactionSplit[]
+
+  @@unique([organizationId, parentId, name])
+  @@index([organizationId])
+  @@index([parentId])
+  @@index([organizationId, parentId])
+  @@index([path])
+  @@map("categories")
+}
+
+model Vendor {
   id             String   @id @default(uuid())
   name           String
+  description    String?
   organizationId String   @map("organization_id")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  splits       TransactionSplit[]
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
 
   @@unique([organizationId, name])
   @@index([organizationId])
-  @@map("categories")
+  @@map("vendors")
 }

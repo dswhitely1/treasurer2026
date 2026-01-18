@@ -50,7 +50,7 @@ describe('Transaction Protection Middleware', () => {
     // Create UNCLEARED transaction
     const unclearedTx = await prisma.transaction.create({
       data: {
-        description: 'Uncleared Transaction',
+        memo: 'Uncleared Transaction',
         amount: 100,
         transactionType: 'EXPENSE',
         accountId,
@@ -62,7 +62,7 @@ describe('Transaction Protection Middleware', () => {
     // Create CLEARED transaction
     const clearedTx = await prisma.transaction.create({
       data: {
-        description: 'Cleared Transaction',
+        memo: 'Cleared Transaction',
         amount: 200,
         transactionType: 'EXPENSE',
         accountId,
@@ -75,7 +75,7 @@ describe('Transaction Protection Middleware', () => {
     // Create RECONCILED transaction
     const reconciledTx = await prisma.transaction.create({
       data: {
-        description: 'Reconciled Transaction',
+        memo: 'Reconciled Transaction',
         amount: 300,
         transactionType: 'EXPENSE',
         accountId,
@@ -254,7 +254,7 @@ describe('Transaction Protection Middleware', () => {
       // This is an edge case that shouldn't happen, but we should handle it
       const edgeCaseTx = await prisma.transaction.create({
         data: {
-          description: 'Edge Case Transaction',
+          memo: 'Edge Case Transaction',
           amount: 400,
           transactionType: 'EXPENSE',
           accountId,

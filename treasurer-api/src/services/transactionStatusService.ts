@@ -305,6 +305,19 @@ export async function bulkChangeTransactionStatus(
         });
       });
     } catch (error) {
+      // CRITICAL: Log batch failure with full context for debugging
+      console.error("Batch transaction status update failed:", {
+        batchSize: validTransactions.length,
+        transactionIds: validTransactions.map((tx) => tx.id),
+        targetStatus: input.status,
+        userId,
+        accountId,
+        notes: input.notes,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        timestamp: new Date().toISOString(),
+      });
+
       // If the entire batch fails, mark all as failed
       validTransactions.forEach((validTx) => {
         failed.push({

@@ -13,6 +13,7 @@ beforeEach(async () => {
   await prisma.transaction.deleteMany()
   await prisma.account.deleteMany()
   await prisma.category.deleteMany()
+  await prisma.vendor.deleteMany()
   await prisma.organizationMember.deleteMany()
   await prisma.organization.deleteMany()
   await prisma.user.deleteMany()

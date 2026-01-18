@@ -116,9 +116,25 @@ class Logger {
       console.error('Failed to store error log in localStorage', storageError)
 
       // Fallback: Send error directly to backend logging endpoint
-      this.sendErrorToBackend(entry, storageError).catch(() => {
-        // If backend also fails, error is lost - last resort console.error already done above
-      })
+      this.sendErrorToBackend(entry, storageError).catch(
+        (backendError: unknown) => {
+          // CRITICAL: Both localStorage and backend logging failed
+          // This is the last resort - ensure console logging is visible
+          console.error('CRITICAL: All error logging mechanisms failed', {
+            originalError: entry,
+            localStorageError: storageError,
+            backendLoggingError: backendError,
+            timestamp: new Date().toISOString(),
+          })
+
+          // Warn in development that error reporting is broken
+          if (this.isDevelopment) {
+            console.warn(
+              '⚠️ Error reporting system is not functioning - errors may be lost'
+            )
+          }
+        }
+      )
     }
   }
 

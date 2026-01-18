@@ -17,7 +17,7 @@ export class AppError extends Error {
   }
 }
 
-export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
+export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   if (err instanceof AppError) {
     sendError(res, err.message, err.statusCode, err.errors);
     return;
@@ -47,7 +47,18 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     }
   }
 
-  console.error("Unhandled error:", err);
+  // Log unhandled errors with full context for debugging
+  console.error("Unhandled error:", {
+    message: err instanceof Error ? err.message : String(err),
+    stack: err instanceof Error ? err.stack : undefined,
+    method: req.method,
+    url: req.originalUrl || req.url,
+    userId: req.user?.id,
+    body: req.method !== "GET" ? req.body : undefined,
+    query: req.query,
+    params: req.params,
+    timestamp: new Date().toISOString(),
+  });
 
   const message =
     env.NODE_ENV === "production" ? "Internal server error" : err.message;

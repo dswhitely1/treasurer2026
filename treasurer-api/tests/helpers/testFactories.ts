@@ -27,7 +27,7 @@ export interface TestAccount {
 
 export interface TestTransaction {
   id: string
-  description: string
+  memo: string | null
   amount: string
   transactionType: TransactionType
   accountId: string
@@ -131,7 +131,7 @@ export async function createTestAccount(
 export async function createTestTransaction(
   accountId: string,
   overrides?: Partial<{
-    description: string
+    memo: string
     amount: number
     transactionType: TransactionType
     status: TransactionStatus
@@ -143,7 +143,7 @@ export async function createTestTransaction(
   }>
 ): Promise<TestTransaction> {
   transactionCounter++
-  const description = overrides?.description ?? `Test Transaction ${transactionCounter}`
+  const memo = overrides?.memo ?? `Test Transaction ${transactionCounter}`
   const amount = overrides?.amount ?? 100
   const transactionType = overrides?.transactionType ?? 'EXPENSE'
   const status = overrides?.status ?? 'UNCLEARED'
@@ -162,7 +162,7 @@ export async function createTestTransaction(
 
   const transaction = await prisma.transaction.create({
     data: {
-      description,
+      memo,
       amount,
       transactionType,
       status,
@@ -193,7 +193,7 @@ export async function createFullTestSetup(overrides?: {
     balance: number
   }>
   transaction?: Partial<{
-    description: string
+    memo: string
     amount: number
     transactionType: TransactionType
     status: TransactionStatus
@@ -239,7 +239,7 @@ export async function createTransactionsWithStatuses(
   // Create uncleared transactions
   for (let i = 0; i < (counts.uncleared ?? 0); i++) {
     const tx = await createTestTransaction(accountId, {
-      description: `Uncleared ${i + 1}`,
+      memo: `Uncleared ${i + 1}`,
       amount: (i + 1) * 100,
       status: 'UNCLEARED',
     })
@@ -249,7 +249,7 @@ export async function createTransactionsWithStatuses(
   // Create cleared transactions
   for (let i = 0; i < (counts.cleared ?? 0); i++) {
     const tx = await createTestTransaction(accountId, {
-      description: `Cleared ${i + 1}`,
+      memo: `Cleared ${i + 1}`,
       amount: (i + 1) * 100,
       status: 'CLEARED',
     })
@@ -259,7 +259,7 @@ export async function createTransactionsWithStatuses(
   // Create reconciled transactions
   for (let i = 0; i < (counts.reconciled ?? 0); i++) {
     const tx = await createTestTransaction(accountId, {
-      description: `Reconciled ${i + 1}`,
+      memo: `Reconciled ${i + 1}`,
       amount: (i + 1) * 100,
       status: 'RECONCILED',
     })

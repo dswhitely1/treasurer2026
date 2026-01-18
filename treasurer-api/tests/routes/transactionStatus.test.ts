@@ -47,7 +47,7 @@ describe("Transaction Status Routes", () => {
       .post(`/api/organizations/${orgId}/accounts/${accountId}/transactions`)
       .set("Authorization", `Bearer ${token}`)
       .send({
-        description: "Test Transaction",
+        memo: "Test Transaction",
         amount: 100,
         transactionType: "EXPENSE",
         date: new Date().toISOString(),
@@ -230,7 +230,7 @@ describe("Transaction Status Routes", () => {
         .post(`/api/organizations/${orgId}/accounts/${accountId}/transactions`)
         .set("Authorization", `Bearer ${token}`)
         .send({
-          description: "Transaction 2",
+          memo: "Transaction 2",
           amount: 200,
           transactionType: "EXPENSE",
           date: new Date().toISOString(),
@@ -242,7 +242,7 @@ describe("Transaction Status Routes", () => {
         .post(`/api/organizations/${orgId}/accounts/${accountId}/transactions`)
         .set("Authorization", `Bearer ${token}`)
         .send({
-          description: "Transaction 3",
+          memo: "Transaction 3",
           amount: 300,
           transactionType: "INCOME",
           date: new Date().toISOString(),
@@ -555,7 +555,7 @@ describe("Transaction Status Routes", () => {
         .post(`/api/organizations/${orgId}/accounts/${accountId}/transactions`)
         .set("Authorization", `Bearer ${token}`)
         .send({
-          description: "Uncleared 1",
+          memo: "Uncleared 1",
           amount: 100,
           transactionType: "INCOME",
           date: new Date().toISOString(),
@@ -566,7 +566,7 @@ describe("Transaction Status Routes", () => {
         .post(`/api/organizations/${orgId}/accounts/${accountId}/transactions`)
         .set("Authorization", `Bearer ${token}`)
         .send({
-          description: "For clearing",
+          memo: "For clearing",
           amount: 200,
           transactionType: "INCOME",
           date: new Date().toISOString(),
@@ -690,7 +690,7 @@ describe("Transaction Status Routes", () => {
           accountId,
           transactionType: "INCOME",
           amount: "100.00",
-          description: "Income transaction",
+          memo: "Income transaction",
           date: new Date(),
           status: "CLEARED",
           clearedAt: new Date(),
@@ -702,7 +702,7 @@ describe("Transaction Status Routes", () => {
           accountId,
           transactionType: "EXPENSE",
           amount: "50.00",
-          description: "Expense transaction",
+          memo: "Expense transaction",
           date: new Date(),
           status: "CLEARED",
           clearedAt: new Date(),
@@ -787,7 +787,7 @@ describe("Transaction Status Routes", () => {
           accountId,
           transactionType: "INCOME",
           amount: "100.00",
-          description: "Uncleared transaction",
+          memo: "Uncleared transaction",
           date: new Date(),
           status: "UNCLEARED",
         },
@@ -846,7 +846,7 @@ describe("Transaction Status Routes", () => {
           accountId,
           transactionType: "INCOME",
           amount: "100.00",
-          description: "Test transaction",
+          memo: "Test transaction",
           date: new Date(),
           status: "CLEARED",
           clearedAt: new Date(),
@@ -885,7 +885,7 @@ describe("Transaction Status Routes", () => {
           accountId,
           transactionType: "INCOME",
           amount: "100.00",
-          description: "Test transaction",
+          memo: "Test transaction",
           date: new Date(),
           status: "CLEARED",
           clearedAt: new Date(),

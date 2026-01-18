@@ -18,6 +18,8 @@ const OrganizationDashboardPage = lazy(() => import('@/pages/OrganizationDashboa
 const AccountsPage = lazy(() => import('@/pages/AccountsPage'))
 const TransactionsPage = lazy(() => import('@/pages/TransactionsPage'))
 const ReconciliationPage = lazy(() => import('@/pages/ReconciliationPage'))
+const VendorsPage = lazy(() => import('@/pages/VendorsPage'))
+const CategoriesPage = lazy(() => import('@/pages/CategoriesPage'))
 
 // Loading component for Suspense fallback
 function PageLoader() {
@@ -93,6 +95,26 @@ function App() {
               <ProtectedRoute>
                 <RequireOrganization>
                   <ReconciliationPage />
+                </RequireOrganization>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/organizations/:orgId/vendors"
+            element={
+              <ProtectedRoute>
+                <RequireOrganization>
+                  <VendorsPage />
+                </RequireOrganization>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/organizations/:orgId/categories"
+            element={
+              <ProtectedRoute>
+                <RequireOrganization>
+                  <CategoriesPage />
                 </RequireOrganization>
               </ProtectedRoute>
             }

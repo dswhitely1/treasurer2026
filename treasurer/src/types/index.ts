@@ -116,3 +116,41 @@ export interface TransactionCategory {
   createdAt: string
   updatedAt: string
 }
+
+/**
+ * Hierarchical category with parent-child relationships.
+ */
+export interface HierarchicalCategory {
+  id: string
+  name: string
+  parentId: string | null
+  parent?: HierarchicalCategory | null
+  children?: HierarchicalCategory[]
+  organizationId: string
+  createdAt: string
+  updatedAt: string
+}
+
+/**
+ * Vendor for transaction payee/merchant tracking.
+ */
+export interface Vendor {
+  id: string
+  name: string
+  description: string | null
+  defaultCategoryId: string | null
+  defaultCategory?: HierarchicalCategory | null
+  organizationId: string
+  transactionCount?: number
+  createdAt: string
+  updatedAt: string
+}
+
+/**
+ * Extended transaction with vendor and memo support.
+ */
+export interface ExtendedAccountTransaction extends AccountTransaction {
+  memo: string | null
+  vendorId: string | null
+  vendor?: Vendor | null
+}
