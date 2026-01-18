@@ -12,6 +12,13 @@ export default defineConfig({
       exclude: ['node_modules/', 'dist/', 'tests/', '*.config.ts'],
     },
     include: ['tests/**/*.test.ts'],
+    pool: 'forks',
+    poolOptions: {
+      forks: {
+        singleFork: true,
+      },
+    },
+    fileParallelism: false,
   },
   resolve: {
     alias: {

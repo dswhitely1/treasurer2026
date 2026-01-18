@@ -1,0 +1,57 @@
+name: Code Quality Check
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+# Cancel in-progress runs when a new run is triggered
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint and Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma Client
+        run: pnpm --filter treasurer-api db:generate
+
+      - name: Lint backend
+        run: pnpm --filter treasurer-api lint
+
+      - name: Lint frontend
+        run: pnpm --filter treasurer lint
+
+      - name: Type check backend
+        run: pnpm --filter treasurer-api type-check
+
+      - name: Type check frontend
+        run: pnpm --filter treasurer type-check
+
+      - name: Build backend
+        run: pnpm --filter treasurer-api build
+
+      - name: Build frontend
+        run: pnpm --filter treasurer build

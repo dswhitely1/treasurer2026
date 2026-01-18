@@ -64,6 +64,105 @@ export const openApiSpec = {
           token: { type: 'string' },
         },
       },
+      TransactionStatus: {
+        type: 'string',
+        enum: ['UNCLEARED', 'CLEARED', 'RECONCILED'],
+      },
+      StatusChangeRequest: {
+        type: 'object',
+        required: ['status'],
+        properties: {
+          status: { $ref: '#/components/schemas/TransactionStatus' },
+          notes: { type: 'string', maxLength: 500 },
+        },
+      },
+      BulkStatusChangeRequest: {
+        type: 'object',
+        required: ['transactionIds', 'status'],
+        properties: {
+          transactionIds: {
+            type: 'array',
+            items: { type: 'string', format: 'uuid' },
+            minItems: 1,
+            maxItems: 100,
+          },
+          status: { $ref: '#/components/schemas/TransactionStatus' },
+          notes: { type: 'string', maxLength: 500 },
+        },
+      },
+      StatusHistoryInfo: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          fromStatus: { $ref: '#/components/schemas/TransactionStatus' },
+          toStatus: { $ref: '#/components/schemas/TransactionStatus' },
+          changedById: { type: 'string', format: 'uuid' },
+          changedByName: { type: 'string' },
+          changedByEmail: { type: 'string', format: 'email' },
+          changedAt: { type: 'string', format: 'date-time' },
+          notes: { type: 'string' },
+        },
+      },
+      ReconciliationSummary: {
+        type: 'object',
+        properties: {
+          accountId: { type: 'string', format: 'uuid' },
+          accountName: { type: 'string' },
+          uncleared: {
+            type: 'object',
+            properties: {
+              count: { type: 'integer' },
+              total: { type: 'string' },
+            },
+          },
+          cleared: {
+            type: 'object',
+            properties: {
+              count: { type: 'integer' },
+              total: { type: 'string' },
+            },
+          },
+          reconciled: {
+            type: 'object',
+            properties: {
+              count: { type: 'integer' },
+              total: { type: 'string' },
+            },
+          },
+          overall: {
+            type: 'object',
+            properties: {
+              count: { type: 'integer' },
+              total: { type: 'string' },
+            },
+          },
+        },
+      },
+      BulkStatusChangeResult: {
+        type: 'object',
+        properties: {
+          successful: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                transactionId: { type: 'string', format: 'uuid' },
+                status: { $ref: '#/components/schemas/TransactionStatus' },
+              },
+            },
+          },
+          failed: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                transactionId: { type: 'string', format: 'uuid' },
+                error: { type: 'string' },
+              },
+            },
+          },
+        },
+      },
     },
   },
   paths: {
@@ -224,6 +323,178 @@ export const openApiSpec = {
           204: { description: 'User deleted' },
           403: { description: 'Forbidden' },
           404: { description: 'User not found' },
+        },
+      },
+    },
+    '/api/organizations/{orgId}/accounts/{accountId}/transactions/{transactionId}/status': {
+      patch: {
+        tags: ['Transaction Status'],
+        summary: 'Change transaction status',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'orgId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+          { name: 'accountId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+          { name: 'transactionId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/StatusChangeRequest' },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'Transaction status updated successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        history: { $ref: '#/components/schemas/StatusHistoryInfo' },
+                      },
+                    },
+                    message: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: 'Invalid status transition or reconciled transaction' },
+          401: { description: 'Unauthorized' },
+          403: { description: 'Insufficient permissions' },
+          404: { description: 'Transaction not found' },
+        },
+      },
+    },
+    '/api/organizations/{orgId}/accounts/{accountId}/transactions/{transactionId}/status/history': {
+      get: {
+        tags: ['Transaction Status'],
+        summary: 'Get transaction status history',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'orgId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+          { name: 'accountId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+          { name: 'transactionId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+        ],
+        responses: {
+          200: {
+            description: 'Transaction status history',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        history: {
+                          type: 'array',
+                          items: { $ref: '#/components/schemas/StatusHistoryInfo' },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          401: { description: 'Unauthorized' },
+          404: { description: 'Transaction not found' },
+        },
+      },
+    },
+    '/api/organizations/{orgId}/accounts/{accountId}/transactions/status/bulk': {
+      post: {
+        tags: ['Transaction Status'],
+        summary: 'Bulk change transaction status',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'orgId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+          { name: 'accountId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/BulkStatusChangeRequest' },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: 'All transactions updated successfully',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: { $ref: '#/components/schemas/BulkStatusChangeResult' },
+                    message: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+          207: {
+            description: 'Bulk operation completed with partial success',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: { $ref: '#/components/schemas/BulkStatusChangeResult' },
+                    message: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+          401: { description: 'Unauthorized' },
+          403: { description: 'Insufficient permissions' },
+          404: { description: 'Account not found' },
+        },
+      },
+    },
+    '/api/organizations/{orgId}/accounts/{accountId}/transactions/status/summary': {
+      get: {
+        tags: ['Transaction Status'],
+        summary: 'Get reconciliation summary for account',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'orgId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+          { name: 'accountId', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+        ],
+        responses: {
+          200: {
+            description: 'Reconciliation summary',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    success: { type: 'boolean' },
+                    data: {
+                      type: 'object',
+                      properties: {
+                        summary: { $ref: '#/components/schemas/ReconciliationSummary' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          401: { description: 'Unauthorized' },
+          404: { description: 'Account not found' },
         },
       },
     },

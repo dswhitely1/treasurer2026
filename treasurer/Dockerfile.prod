@@ -1,0 +1,42 @@
+# Multi-stage build for optimized production frontend
+# Stage 1: Build the application
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# Copy package files
+COPY package.json pnpm-lock.yaml ./
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy source code
+COPY . .
+
+# Build production bundle
+RUN pnpm build
+
+# Stage 2: Serve the built application
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install pnpm and serve package for serving static files
+RUN corepack enable && corepack prepare pnpm@latest --activate \
+    && pnpm add -g serve
+
+# Copy built application from builder stage
+COPY --from=builder /app/dist ./dist
+
+# Expose port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
+
+# Start the application with serve
+CMD ["serve", "-s", "dist", "-l", "3000"]

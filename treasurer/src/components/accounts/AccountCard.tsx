@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Link } from 'react-router-dom'
 import type { Account, AccountType } from '@/types'
 import { Card, Button } from '@/components/ui'
@@ -35,7 +36,12 @@ function formatCurrency(amount: string, currency: string): string {
   }).format(num)
 }
 
-export function AccountCard({ account, orgId, onEdit, onDelete }: AccountCardProps) {
+export const AccountCard = memo(function AccountCard({
+  account,
+  orgId,
+  onEdit,
+  onDelete,
+}: AccountCardProps) {
   return (
     <Card className="p-6">
       <div className="flex items-start justify-between">
@@ -96,4 +102,4 @@ export function AccountCard({ account, orgId, onEdit, onDelete }: AccountCardPro
       </div>
     </Card>
   )
-}
+})

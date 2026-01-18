@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Card } from '@/components/ui'
 import type { AccountTransaction } from '@/types'
 
@@ -19,7 +20,11 @@ const transactionTypeColors: Record<string, string> = {
   TRANSFER: 'bg-blue-100 text-blue-800',
 }
 
-export function TransactionCard({ transaction, onEdit, onDelete }: TransactionCardProps) {
+export const TransactionCard = memo(function TransactionCard({
+  transaction,
+  onEdit,
+  onDelete,
+}: TransactionCardProps) {
   const formatCurrency = (amount: string) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -107,4 +112,4 @@ export function TransactionCard({ transaction, onEdit, onDelete }: TransactionCa
       )}
     </Card>
   )
-}
+})
