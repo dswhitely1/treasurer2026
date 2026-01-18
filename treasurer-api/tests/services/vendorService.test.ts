@@ -44,7 +44,7 @@ describe("Vendor Service", () => {
     it("should create a new vendor with valid data", async () => {
       const vendor = await createVendor(orgId, {
         name: "Acme Corp",
-        memo: "Office supplies vendor",
+        description: "Office supplies vendor",
       });
 
       expect(vendor.name).toBe("Acme Corp");

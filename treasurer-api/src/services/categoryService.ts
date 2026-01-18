@@ -221,9 +221,9 @@ export async function createCategory(
     input.parentId ?? null,
   );
 
-  if (depth >= MAX_CATEGORY_DEPTH) {
+  if (depth > MAX_CATEGORY_DEPTH) {
     throw new AppError(
-      `Category depth cannot exceed ${String(MAX_CATEGORY_DEPTH)} levels`,
+      `Category depth cannot exceed ${String(MAX_CATEGORY_DEPTH)}`,
       400,
     );
   }
@@ -413,10 +413,10 @@ export async function updateCategory(
     const depthDelta = newDepth - existing.depth;
     if (
       maxDescendantDepth &&
-      maxDescendantDepth.depth + depthDelta >= MAX_CATEGORY_DEPTH
+      maxDescendantDepth.depth + depthDelta > MAX_CATEGORY_DEPTH
     ) {
       throw new AppError(
-        `Moving this category would cause descendants to exceed ${String(MAX_CATEGORY_DEPTH)} levels`,
+        `Moving this category would cause descendants to exceed depth ${String(MAX_CATEGORY_DEPTH)}`,
         400,
       );
     }
