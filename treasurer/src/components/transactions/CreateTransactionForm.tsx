@@ -47,7 +47,8 @@ export function CreateTransactionForm({
 }: CreateTransactionFormProps) {
   const [description, setDescription] = useState('')
   const [amount, setAmount] = useState('')
-  const [transactionType, setTransactionType] = useState<TransactionType>('EXPENSE')
+  const [transactionType, setTransactionType] =
+    useState<TransactionType>('EXPENSE')
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
   const [applyFee, setApplyFee] = useState(false)
   const [splits, setSplits] = useState<SplitItem[]>([
@@ -86,7 +87,9 @@ export function CreateTransactionForm({
       description,
       amount: transactionAmount,
       transactionType,
-      date: date ? new Date(date).toISOString() : new Date().toISOString(),
+      date: date
+        ? new Date(date + 'T12:00:00').toISOString()
+        : new Date().toISOString(),
       applyFee,
       splits: validSplits.map((split) => ({
         amount: parseFloat(split.amount),
@@ -96,7 +99,10 @@ export function CreateTransactionForm({
   }
 
   const addSplit = () => {
-    setSplits([...splits, { id: generateSplitId(), amount: '', categoryName: '' }])
+    setSplits([
+      ...splits,
+      { id: generateSplitId(), amount: '', categoryName: '' },
+    ])
   }
 
   const removeSplit = (index: number) => {
@@ -105,8 +111,12 @@ export function CreateTransactionForm({
     }
   }
 
-  const updateSplit = (index: number, field: 'amount' | 'categoryName', value: string) => {
-    setSplits(prevSplits => {
+  const updateSplit = (
+    index: number,
+    field: 'amount' | 'categoryName',
+    value: string
+  ) => {
+    setSplits((prevSplits) => {
       const newSplits = [...prevSplits]
       const currentSplit = newSplits[index]
       if (currentSplit) {
@@ -132,12 +142,16 @@ export function CreateTransactionForm({
     description.trim() &&
     transactionAmount > 0 &&
     Math.abs(remainingAmount) < 0.01 &&
-    splits.every((split) => split.categoryName.trim() && parseFloat(split.amount) > 0)
+    splits.every(
+      (split) => split.categoryName.trim() && parseFloat(split.amount) > 0
+    )
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {error && (
-        <div className="rounded-md bg-red-50 p-4 text-sm text-red-600">{error}</div>
+        <div className="rounded-md bg-red-50 p-4 text-sm text-red-600">
+          {error}
+        </div>
       )}
 
       <div className="grid grid-cols-2 gap-4">
@@ -179,7 +193,9 @@ export function CreateTransactionForm({
           <select
             id="transactionType"
             value={transactionType}
-            onChange={(e) => setTransactionType(e.target.value as TransactionType)}
+            onChange={(e) =>
+              setTransactionType(e.target.value as TransactionType)
+            }
             disabled={isLoading}
             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
@@ -214,7 +230,8 @@ export function CreateTransactionForm({
             className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
           />
           <Label htmlFor="applyFee" className="!mt-0">
-            Apply transaction fee (${parseFloat(account.transactionFee).toFixed(2)})
+            Apply transaction fee ($
+            {parseFloat(account.transactionFee).toFixed(2)})
           </Label>
         </div>
       )}
@@ -232,8 +249,8 @@ export function CreateTransactionForm({
             {remainingAmount > 0
               ? `$${remainingAmount.toFixed(2)} remaining`
               : remainingAmount < 0
-              ? `$${Math.abs(remainingAmount).toFixed(2)} over`
-              : 'Balanced'}
+                ? `$${Math.abs(remainingAmount).toFixed(2)} over`
+                : 'Balanced'}
           </span>
         </div>
 
@@ -268,7 +285,9 @@ export function CreateTransactionForm({
                           key={category.id}
                           type="button"
                           className="block w-full px-3 py-2 text-left text-sm hover:bg-gray-100"
-                          onMouseDown={() => selectCategory(index, category.name)}
+                          onMouseDown={() =>
+                            selectCategory(index, category.name)
+                          }
                         >
                           {category.name}
                         </button>
@@ -320,7 +339,12 @@ export function CreateTransactionForm({
 
       <div className="flex justify-end gap-3 pt-4">
         {onCancel && (
-          <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            disabled={isLoading}
+          >
             Cancel
           </Button>
         )}
