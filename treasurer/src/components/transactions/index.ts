@@ -4,3 +4,9 @@ export {
   EnhancedTransactionForm,
   type EnhancedTransactionData,
 } from './EnhancedTransactionForm'
+export {
+  TransactionEditModal,
+  TransactionEditForm,
+  ConflictResolutionDialog,
+  EditHistoryPanel,
+} from './edit'

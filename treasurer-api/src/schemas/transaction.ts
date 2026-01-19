@@ -7,6 +7,14 @@ export const transactionStatusEnum = z.enum([
   "RECONCILED",
 ]);
 
+export const editTypeEnum = z.enum([
+  "CREATE",
+  "UPDATE",
+  "DELETE",
+  "RESTORE",
+  "SPLIT_CHANGE",
+]);
+
 export const transactionSplitSchema = z.object({
   amount: z.number().positive("Split amount must be positive"),
   categoryName: z
@@ -80,6 +88,10 @@ export const createTransactionSchema = z
 
 export const updateTransactionSchema = z
   .object({
+    version: z
+      .number()
+      .int()
+      .positive("Version must be a positive integer"),
     memo: z
       .string()
       .max(1000, "Memo must be 1000 characters or less")
@@ -150,3 +162,24 @@ export type TransactionType = z.infer<typeof transactionTypeEnum>;
 export type TransactionStatus = z.infer<typeof transactionStatusEnum>;
 export type TransactionSplitDto = z.infer<typeof transactionSplitSchema>;
 export type TransactionQueryDto = z.infer<typeof transactionQuerySchema>;
+export type EditType = z.infer<typeof editTypeEnum>;
+
+/**
+ * Represents a single field change in a transaction edit
+ */
+export interface FieldChange {
+  field: string;
+  oldValue: unknown;
+  newValue: unknown;
+}
+
+/**
+ * Conflict metadata returned when optimistic locking fails (409 response)
+ */
+export interface ConflictMetadata {
+  currentVersion: number;
+  lastModifiedById: string | null;
+  lastModifiedByName: string | null;
+  lastModifiedByEmail: string | null;
+  lastModifiedAt: string;
+}

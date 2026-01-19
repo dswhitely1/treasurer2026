@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useEffect, useState, useCallback } from 'react'
+import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import {
   fetchTransactions,
@@ -18,7 +18,12 @@ import {
 } from '@/store/features/statusSlice'
 import { selectIsOrgAdmin } from '@/store/features/organizationSlice'
 import { Card, Button } from '@/components/ui'
-import { TransactionCard, EnhancedTransactionForm, type CreateTransactionData } from '@/components/transactions'
+import {
+  TransactionCard,
+  EnhancedTransactionForm,
+  TransactionEditModal,
+  type CreateTransactionData,
+} from '@/components/transactions'
 import {
   StatusFilterControls,
   TransactionBulkActions,
@@ -124,6 +129,7 @@ function EnhancedTransactionCard({
 
 export function TransactionsPage() {
   const { orgId, accountId } = useParams<{ orgId: string; accountId: string }>()
+  const [searchParams, setSearchParams] = useSearchParams()
   const dispatch = useAppDispatch()
   const transactions = useAppSelector(selectTransactions)
   const total = useAppSelector(selectTransactionTotal)
@@ -141,6 +147,17 @@ export function TransactionsPage() {
     CLEARED: 0,
     RECONCILED: 0,
   })
+
+  // Handle opening edit modal via URL param
+  const handleEditTransaction = useCallback(
+    (transaction: AccountTransaction) => {
+      const newParams = new URLSearchParams(searchParams)
+      newParams.set('edit', transaction.id)
+      setSearchParams(newParams)
+      // Note: Don't call openEditModal here - let TransactionEditModal's useEffect handle it
+    },
+    [searchParams, setSearchParams]
+  )
 
   // Custom hooks for status management
   const bulkSelection = useBulkSelection()
@@ -413,7 +430,7 @@ export function TransactionsPage() {
               isSelected={bulkSelection.isSelected(transaction.id)}
               onToggleSelect={bulkSelection.toggle}
               onStatusChange={(id, status) => void handleStatusChange(id, status)}
-              onEdit={isAdmin ? () => console.log('Edit', transaction) : undefined}
+              onEdit={isAdmin ? () => handleEditTransaction(transaction) : undefined}
               onDelete={isAdmin ? handleDeleteTransaction : undefined}
               isStatusChanging={isChanging}
             />
@@ -428,6 +445,11 @@ export function TransactionsPage() {
         onClearSelection={() => dispatch(clearSelection())}
         isLoading={isBulkChanging}
       />
+
+      {/* Transaction Edit Modal */}
+      {orgId && accountId && (
+        <TransactionEditModal orgId={orgId} accountId={accountId} />
+      )}
     </div>
   )
 }

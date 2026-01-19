@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { EditType, Prisma } from "@prisma/client";
 import { prisma } from "../config/database.js";
 import { AppError } from "../middleware/errorHandler.js";
 import { validateVendorOwnership } from "./vendorService.js";
@@ -7,6 +7,8 @@ import type {
   UpdateTransactionDto,
   TransactionType,
   TransactionQueryDto,
+  FieldChange,
+  ConflictMetadata,
 } from "../schemas/transaction.js";
 
 export interface TransactionSplitInfo {
@@ -31,9 +33,42 @@ export interface TransactionInfo {
   status: string;
   clearedAt: string | null;
   reconciledAt: string | null;
+  version: number;
+  createdById: string | null;
+  createdByName: string | null;
+  createdByEmail: string | null;
+  lastModifiedById: string | null;
+  lastModifiedByName: string | null;
+  lastModifiedByEmail: string | null;
   splits: TransactionSplitInfo[];
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * Result type for update operations that may include conflict metadata
+ */
+export interface UpdateTransactionResult {
+  transaction: TransactionInfo;
+}
+
+/**
+ * Custom error class for version conflicts with metadata
+ */
+export class VersionConflictError extends AppError {
+  public conflictMetadata: ConflictMetadata;
+  public currentTransaction: TransactionInfo;
+
+  constructor(
+    message: string,
+    conflictMetadata: ConflictMetadata,
+    currentTransaction: TransactionInfo,
+  ) {
+    super(message, 409);
+    this.name = "VersionConflictError";
+    this.conflictMetadata = conflictMetadata;
+    this.currentTransaction = currentTransaction;
+  }
 }
 
 interface TransactionWithSplits {
@@ -49,11 +84,24 @@ interface TransactionWithSplits {
   status: string;
   clearedAt: Date | null;
   reconciledAt: Date | null;
+  version: number;
+  createdById: string | null;
+  lastModifiedById: string | null;
   createdAt: Date;
   updatedAt: Date;
   vendor?: {
     id: string;
     name: string;
+  } | null;
+  createdBy?: {
+    id: string;
+    name: string | null;
+    email: string;
+  } | null;
+  lastModifiedBy?: {
+    id: string;
+    name: string | null;
+    email: string;
   } | null;
   splits: Array<{
     id: string;
@@ -84,6 +132,13 @@ function formatTransaction(
     status: transaction.status,
     clearedAt: transaction.clearedAt?.toISOString() ?? null,
     reconciledAt: transaction.reconciledAt?.toISOString() ?? null,
+    version: transaction.version,
+    createdById: transaction.createdById,
+    createdByName: transaction.createdBy?.name ?? null,
+    createdByEmail: transaction.createdBy?.email ?? null,
+    lastModifiedById: transaction.lastModifiedById,
+    lastModifiedByName: transaction.lastModifiedBy?.name ?? null,
+    lastModifiedByEmail: transaction.lastModifiedBy?.email ?? null,
     splits: transaction.splits.map((split) => ({
       id: split.id,
       amount: split.amount.toString(),
@@ -92,6 +147,147 @@ function formatTransaction(
     })),
     createdAt: transaction.createdAt.toISOString(),
     updatedAt: transaction.updatedAt.toISOString(),
+  };
+}
+
+/**
+ * Detects field changes between old and new transaction data
+ */
+function detectFieldChanges(
+  existing: {
+    memo: string | null;
+    amount: Prisma.Decimal;
+    transactionType: string;
+    date: Date;
+    feeAmount: Prisma.Decimal | null;
+    vendorId: string | null;
+    destinationAccountId: string | null;
+    splits: Array<{
+      id: string;
+      amount: Prisma.Decimal;
+      categoryId: string;
+    }>;
+  },
+  input: UpdateTransactionDto,
+  newSplits?: Array<{ amount: number; categoryId: string }>,
+): FieldChange[] {
+  const changes: FieldChange[] = [];
+
+  // Check memo change
+  if (input.memo !== undefined && input.memo !== existing.memo) {
+    changes.push({
+      field: "memo",
+      oldValue: existing.memo,
+      newValue: input.memo,
+    });
+  }
+
+  // Check amount change
+  if (input.amount !== undefined && input.amount !== existing.amount.toNumber()) {
+    changes.push({
+      field: "amount",
+      oldValue: existing.amount.toNumber(),
+      newValue: input.amount,
+    });
+  }
+
+  // Check transactionType change
+  if (input.transactionType !== undefined && input.transactionType !== existing.transactionType) {
+    changes.push({
+      field: "transactionType",
+      oldValue: existing.transactionType,
+      newValue: input.transactionType,
+    });
+  }
+
+  // Check date change
+  if (input.date !== undefined) {
+    const newDate = new Date(input.date);
+    if (newDate.getTime() !== existing.date.getTime()) {
+      changes.push({
+        field: "date",
+        oldValue: existing.date.toISOString(),
+        newValue: newDate.toISOString(),
+      });
+    }
+  }
+
+  // Check vendorId change
+  if (input.vendorId !== undefined && input.vendorId !== existing.vendorId) {
+    changes.push({
+      field: "vendorId",
+      oldValue: existing.vendorId,
+      newValue: input.vendorId,
+    });
+  }
+
+  // Check destinationAccountId change
+  if (input.destinationAccountId !== undefined && input.destinationAccountId !== existing.destinationAccountId) {
+    changes.push({
+      field: "destinationAccountId",
+      oldValue: existing.destinationAccountId,
+      newValue: input.destinationAccountId,
+    });
+  }
+
+  // Check splits change
+  if (input.splits && newSplits) {
+    const oldSplits = existing.splits.map((s) => ({
+      amount: s.amount.toNumber(),
+      categoryId: s.categoryId,
+    }));
+
+    const splitsChanged =
+      oldSplits.length !== newSplits.length ||
+      oldSplits.some((old, i) => {
+        const newSplit = newSplits[i];
+        if (!newSplit) return true;
+        return old.amount !== newSplit.amount || old.categoryId !== newSplit.categoryId;
+      });
+
+    if (splitsChanged) {
+      changes.push({
+        field: "splits",
+        oldValue: oldSplits,
+        newValue: newSplits,
+      });
+    }
+  }
+
+  return changes;
+}
+
+/**
+ * Builds a snapshot of the previous transaction state for audit
+ */
+function buildPreviousState(
+  existing: {
+    memo: string | null;
+    amount: Prisma.Decimal;
+    transactionType: string;
+    date: Date;
+    feeAmount: Prisma.Decimal | null;
+    vendorId: string | null;
+    destinationAccountId: string | null;
+    splits: Array<{
+      id: string;
+      amount: Prisma.Decimal;
+      categoryId: string;
+    }>;
+  },
+): Record<string, unknown> {
+  return {
+    memo: existing.memo,
+    amount: existing.amount.toNumber(),
+    transactionType: existing.transactionType,
+    date: existing.date.toISOString(),
+    feeAmount: existing.feeAmount?.toNumber() ?? null,
+    vendorId: existing.vendorId,
+    destinationAccountId: existing.destinationAccountId,
+    splits: existing.splits.map((s) => ({
+      amount: s.amount.toNumber(),
+      categoryId: s.categoryId,
+    })),
   };
 }
 
@@ -133,6 +329,7 @@ export async function createTransaction(
   organizationId: string,
   accountId: string,
   input: CreateTransactionDto,
+  userId?: string,
 ): Promise<TransactionInfo> {
   // Verify source account exists and belongs to org
   const account = await prisma.account.findFirst({
@@ -233,6 +430,11 @@ export async function createTransaction(
             connect: { id: input.destinationAccountId },
           },
         }),
+        ...(userId && {
+          createdBy: {
+            connect: { id: userId },
+          },
+        }),
         splits: {
           create: input.splits.map((split, index) => ({
             amount: split.amount,
@@ -244,6 +446,12 @@ export async function createTransaction(
       },
       include: {
         vendor: true,
+        createdBy: {
+          select: { id: true, name: true, email: true },
+        },
+        lastModifiedBy: {
+          select: { id: true, name: true, email: true },
+        },
         splits: {
           include: {
             category: true,
@@ -361,6 +569,12 @@ export async function getAccountTransactions(
       where,
       include: {
         vendor: true,
+        createdBy: {
+          select: { id: true, name: true, email: true },
+        },
+        lastModifiedBy: {
+          select: { id: true, name: true, email: true },
+        },
         splits: {
           include: {
             category: true,
@@ -404,6 +618,12 @@ export async function getTransaction(
     },
     include: {
       vendor: true,
+      createdBy: {
+        select: { id: true, name: true, email: true },
+      },
+      lastModifiedBy: {
+        select: { id: true, name: true, email: true },
+      },
       splits: {
         include: {
           category: true,
@@ -424,6 +644,7 @@ export async function updateTransaction(
   accountId: string,
   transactionId: string,
   input: UpdateTransactionDto,
+  userId: string,
 ): Promise<TransactionInfo> {
   // Verify account exists and belongs to org
   const account = await prisma.account.findFirst({
@@ -437,18 +658,50 @@ export async function updateTransaction(
     throw new AppError("Account not found", 404);
   }
 
+  // Fetch existing transaction with user relations for conflict detection
   const existing = await prisma.transaction.findFirst({
     where: {
       id: transactionId,
       accountId,
     },
     include: {
-      splits: true,
+      splits: {
+        include: {
+          category: true,
+        },
+      },
+      vendor: true,
+      createdBy: {
+        select: { id: true, name: true, email: true },
+      },
+      lastModifiedBy: {
+        select: { id: true, name: true, email: true },
+      },
     },
   });
 
   if (!existing) {
     throw new AppError("Transaction not found", 404);
+  }
+
+  // Optimistic locking check - version must match
+  if (existing.version !== input.version) {
+    // Fetch the current transaction formatted for the response
+    const currentFormatted = formatTransaction(existing);
+
+    const conflictMetadata: ConflictMetadata = {
+      currentVersion: existing.version,
+      lastModifiedById: existing.lastModifiedById,
+      lastModifiedByName: existing.lastModifiedBy?.name ?? null,
+      lastModifiedByEmail: existing.lastModifiedBy?.email ?? null,
+      lastModifiedAt: existing.updatedAt.toISOString(),
+    };
+
+    throw new VersionConflictError(
+      "Transaction has been modified by another user. Please refresh and try again.",
+      conflictMetadata,
+      currentFormatted,
+    );
   }
 
   // Validate vendor if provided
@@ -541,6 +794,26 @@ export async function updateTransaction(
     );
   }
 
+  // Build new splits data for change detection
+  // Note: categoryIds is guaranteed to have the same length as input.splits
+  const newSplitsData = input.splits
+    ? input.splits.map((split, index) => ({
+        amount: split.amount,
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        categoryId: categoryIds[index]!,
+      }))
+    : undefined;
+
+  // Detect field changes for audit trail
+  const fieldChanges = detectFieldChanges(existing, input, newSplitsData);
+  const previousState = buildPreviousState(existing);
+
+  // Determine edit type based on what changed
+  let editType: EditType = EditType.UPDATE;
+  if (fieldChanges.some((change) => change.field === "splits")) {
+    editType = EditType.SPLIT_CHANGE;
+  }
+
   const transaction = await prisma.$transaction(async (tx) => {
     // Delete old splits if updating
     if (input.splits) {
@@ -549,7 +822,7 @@ export async function updateTransaction(
       });
     }
 
-    // Build update data
+    // Build update data with version increment and lastModifiedById
     const updateData: Prisma.TransactionUpdateInput = {
       ...(input.memo !== undefined && {
         memo: input.memo,
@@ -560,6 +833,8 @@ export async function updateTransaction(
       }),
       ...(input.date !== undefined && { date: new Date(input.date) }),
       feeAmount: newFeeAmount,
+      version: { increment: 1 },
+      lastModifiedBy: { connect: { id: userId } },
     };
 
     // Handle vendor update
@@ -600,6 +875,12 @@ export async function updateTransaction(
       data: updateData,
       include: {
         vendor: true,
+        createdBy: {
+          select: { id: true, name: true, email: true },
+        },
+        lastModifiedBy: {
+          select: { id: true, name: true, email: true },
+        },
         splits: {
           include: {
             category: true,
@@ -607,6 +888,19 @@ export async function updateTransaction(
         },
       },
     });
+
+    // Create edit history record if there are actual changes
+    if (fieldChanges.length > 0) {
+      await tx.transactionEditHistory.create({
+        data: {
+          transactionId,
+          editedById: userId,
+          editType,
+          changes: fieldChanges as unknown as Prisma.InputJsonValue,
+          previousState: previousState as unknown as Prisma.InputJsonValue,
+        },
+      });
+    }
 
     // Handle balance adjustments based on old and new transaction types
     const wasTransfer = oldType === "TRANSFER";

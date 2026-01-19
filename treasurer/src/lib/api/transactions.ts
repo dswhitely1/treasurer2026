@@ -1,5 +1,11 @@
 import { api } from '../api'
-import type { AccountTransaction, TransactionType, TransactionCategory } from '@/types'
+import type {
+  AccountTransaction,
+  TransactionType,
+  TransactionCategory,
+  VersionedTransaction,
+  EditHistoryEntry,
+} from '@/types'
 
 export interface TransactionSplitInput {
   amount: number
@@ -30,6 +36,16 @@ export interface UpdateTransactionInput {
   vendorId?: string | null
   /** Additional notes/memo for the transaction */
   memo?: string | null
+  /** Version for optimistic locking (required when updating) */
+  version?: number
+}
+
+/**
+ * Input for force-saving a transaction (overrides conflict).
+ */
+export interface ForceSaveTransactionInput extends UpdateTransactionInput {
+  /** Force save even if version conflicts exist */
+  force: true
 }
 
 export interface TransactionQueryParams {
@@ -64,6 +80,30 @@ interface CategoriesListResponse {
 interface MessageResponse {
   success: boolean
   message: string
+}
+
+interface VersionedTransactionResponse {
+  success: boolean
+  data: { transaction: VersionedTransaction }
+  message?: string
+}
+
+interface ConflictResponse {
+  success: false
+  message: string
+  data: {
+    serverVersion: number
+    serverData: VersionedTransaction
+    clientVersion: number
+  }
+}
+
+interface EditHistoryResponse {
+  success: boolean
+  data: {
+    history: EditHistoryEntry[]
+    total: number
+  }
 }
 
 export const transactionApi = {
@@ -105,6 +145,61 @@ export const transactionApi = {
     api.delete<MessageResponse>(
       `/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`
     ),
+
+  /**
+   * Get a single transaction with version info for editing.
+   */
+  getForEdit: (orgId: string, accountId: string, transactionId: string) =>
+    api.get<VersionedTransactionResponse>(
+      `/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`
+    ),
+
+  /**
+   * Update transaction with optimistic locking.
+   * Returns 409 Conflict if version mismatch.
+   */
+  updateWithVersion: (
+    orgId: string,
+    accountId: string,
+    transactionId: string,
+    data: UpdateTransactionInput
+  ) =>
+    api.patch<VersionedTransactionResponse | ConflictResponse>(
+      `/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`,
+      data
+    ),
+
+  /**
+   * Force save transaction, overriding any version conflicts.
+   */
+  forceSave: (
+    orgId: string,
+    accountId: string,
+    transactionId: string,
+    data: ForceSaveTransactionInput
+  ) =>
+    api.patch<VersionedTransactionResponse>(
+      `/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`,
+      data
+    ),
+
+  /**
+   * Get edit history for a transaction.
+   */
+  getEditHistory: (
+    orgId: string,
+    accountId: string,
+    transactionId: string,
+    params?: { limit?: number; offset?: number }
+  ) => {
+    const queryParams: Record<string, string> = {}
+    if (params?.limit !== undefined) queryParams.limit = String(params.limit)
+    if (params?.offset !== undefined) queryParams.offset = String(params.offset)
+    return api.get<EditHistoryResponse>(
+      `/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}/history`,
+      Object.keys(queryParams).length > 0 ? { params: queryParams } : undefined
+    )
+  },
 }
 
 export const categoryApi = {

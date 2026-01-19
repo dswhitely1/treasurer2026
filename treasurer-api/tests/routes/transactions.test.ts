@@ -849,6 +849,7 @@ describe("Transaction Routes", () => {
           )
           .set("Authorization", `Bearer ${token}`)
           .send({
+            version: 1,
             amount: 300,
             splits: [{ amount: 300, categoryName: "Transfer" }],
           });
@@ -921,6 +922,7 @@ describe("Transaction Routes", () => {
           )
           .set("Authorization", `Bearer ${token}`)
           .send({
+            version: 1,
             destinationAccountId: dest2Id,
           });
 
@@ -980,6 +982,7 @@ describe("Transaction Routes", () => {
           )
           .set("Authorization", `Bearer ${token}`)
           .send({
+            version: 1,
             transactionType: "TRANSFER",
             destinationAccountId: destId,
           });
@@ -1048,6 +1051,7 @@ describe("Transaction Routes", () => {
           )
           .set("Authorization", `Bearer ${token}`)
           .send({
+            version: 1,
             transactionType: "EXPENSE",
             destinationAccountId: null,
           });
@@ -1092,10 +1096,796 @@ describe("Transaction Routes", () => {
           )
           .set("Authorization", `Bearer ${token}`)
           .send({
+            version: 1,
             transactionType: "TRANSFER",
           });
 
         expect(updateResponse.status).toBe(400);
+      });
+    });
+
+    describe("Transaction Edit with Optimistic Locking", () => {
+      it("should successfully update transaction with correct version", async () => {
+        // Create a transaction
+        const createResponse = await request(app)
+          .post(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            description: "Original transaction",
+            amount: 100,
+            transactionType: "EXPENSE",
+            splits: [{ amount: 100, categoryName: "Food" }],
+          });
+
+        expect(createResponse.status).toBe(201);
+        const transactionId = createResponse.body.data.transaction.id;
+        const initialVersion = createResponse.body.data.transaction.version;
+        expect(initialVersion).toBe(1);
+
+        // Update the transaction with correct version
+        const updateResponse = await request(app)
+          .patch(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            version: 1,
+            memo: "Updated memo",
+            amount: 150,
+            splits: [{ amount: 150, categoryName: "Food" }],
+          });
+
+        expect(updateResponse.status).toBe(200);
+        expect(updateResponse.body.data.transaction.memo).toBe("Updated memo");
+        expect(updateResponse.body.data.transaction.amount).toBe("150");
+        expect(updateResponse.body.data.transaction.version).toBe(2);
+      });
+
+      it("should increment version on each update", async () => {
+        // Create a transaction
+        const createResponse = await request(app)
+          .post(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            description: "Test",
+            amount: 100,
+            transactionType: "EXPENSE",
+            splits: [{ amount: 100, categoryName: "Test" }],
+          });
+
+        const transactionId = createResponse.body.data.transaction.id;
+
+        // First update: version 1 -> 2
+        const update1 = await request(app)
+          .patch(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            version: 1,
+            memo: "Update 1",
+          });
+
+        expect(update1.status).toBe(200);
+        expect(update1.body.data.transaction.version).toBe(2);
+
+        // Second update: version 2 -> 3
+        const update2 = await request(app)
+          .patch(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            version: 2,
+            memo: "Update 2",
+          });
+
+        expect(update2.status).toBe(200);
+        expect(update2.body.data.transaction.version).toBe(3);
+      });
+
+      it("should return 409 conflict when version mismatches", async () => {
+        // Create a transaction
+        const createResponse = await request(app)
+          .post(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            description: "Test",
+            amount: 100,
+            transactionType: "EXPENSE",
+            splits: [{ amount: 100, categoryName: "Test" }],
+          });
+
+        const transactionId = createResponse.body.data.transaction.id;
+
+        // First update succeeds
+        await request(app)
+          .patch(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            version: 1,
+            memo: "First update",
+          });
+
+        // Second update with stale version fails
+        const conflictResponse = await request(app)
+          .patch(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            version: 1, // Stale version
+            memo: "Second update",
+          });
+
+        expect(conflictResponse.status).toBe(409);
+        expect(conflictResponse.body.success).toBe(false);
+        expect(conflictResponse.body.message).toContain(
+          "modified by another user",
+        );
+      });
+
+      it("should include conflict metadata in 409 response", async () => {
+        // Create a transaction
+        const createResponse = await request(app)
+          .post(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            description: "Test",
+            amount: 100,
+            transactionType: "EXPENSE",
+            splits: [{ amount: 100, categoryName: "Test" }],
+          });
+
+        const transactionId = createResponse.body.data.transaction.id;
+
+        // First update
+        await request(app)
+          .patch(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            version: 1,
+            memo: "First update",
+          });
+
+        // Second update with stale version
+        const conflictResponse = await request(app)
+          .patch(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            version: 1,
+            memo: "Second update",
+          });
+
+        expect(conflictResponse.status).toBe(409);
+        expect(conflictResponse.body.conflict).toBeDefined();
+        expect(conflictResponse.body.conflict.currentVersion).toBe(2);
+        expect(conflictResponse.body.conflict.lastModifiedById).toBeDefined();
+        expect(conflictResponse.body.conflict.lastModifiedByName).toBeDefined();
+        expect(conflictResponse.body.conflict.lastModifiedByEmail).toBeDefined();
+        expect(conflictResponse.body.conflict.lastModifiedAt).toBeDefined();
+        expect(conflictResponse.body.currentTransaction).toBeDefined();
+        expect(conflictResponse.body.currentTransaction.version).toBe(2);
+      });
+
+      it("should prevent editing reconciled transactions", async () => {
+        // Create and reconcile a transaction
+        const createResponse = await request(app)
+          .post(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            memo: "Test",
+            amount: 100,
+            transactionType: "EXPENSE",
+            splits: [{ amount: 100, categoryName: "Test" }],
+          });
+
+        const transactionId = createResponse.body.data.transaction.id;
+        expect(createResponse.status).toBe(201);
+
+        // Reconcile the transaction
+        const reconcileResponse = await request(app)
+          .patch(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}/status`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({ status: "RECONCILED" });
+
+        expect(reconcileResponse.status).toBe(200);
+
+        // Try to update reconciled transaction - should fail
+        const updateResponse = await request(app)
+          .patch(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            version: 1,
+            memo: "Should fail",
+          });
+
+        expect(updateResponse.status).toBe(400);
+        expect(updateResponse.body.message).toMatch(
+          /reconciled|cannot modify reconciled/i,
+        );
+      });
+
+      it("should update all field types correctly", async () => {
+        // Create destination account
+        const destResponse = await request(app)
+          .post(`/api/organizations/${orgId}/accounts`)
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            name: "Destination",
+            accountType: "SAVINGS",
+            balance: 0,
+          });
+        const destId = destResponse.body.data.account.id;
+
+        // Create a transaction
+        const createResponse = await request(app)
+          .post(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            description: "Original",
+            amount: 100,
+            transactionType: "EXPENSE",
+            date: "2024-01-01T00:00:00Z",
+            splits: [{ amount: 100, categoryName: "Food" }],
+          });
+
+        const transactionId = createResponse.body.data.transaction.id;
+
+        // Update all fields
+        const updateResponse = await request(app)
+          .patch(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            version: 1,
+            memo: "Updated memo",
+            amount: 200,
+            transactionType: "TRANSFER",
+            date: "2024-02-01T00:00:00Z",
+            destinationAccountId: destId,
+            splits: [{ amount: 200, categoryName: "Savings" }],
+          });
+
+        expect(updateResponse.status).toBe(200);
+        const transaction = updateResponse.body.data.transaction;
+        expect(transaction.memo).toBe("Updated memo");
+        expect(transaction.amount).toBe("200");
+        expect(transaction.transactionType).toBe("TRANSFER");
+        expect(transaction.destinationAccountId).toBe(destId);
+        expect(new Date(transaction.date).toISOString()).toBe(
+          "2024-02-01T00:00:00.000Z",
+        );
+      });
+
+      it("should set createdById and lastModifiedById correctly", async () => {
+        // Create a transaction
+        const createResponse = await request(app)
+          .post(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            description: "Test",
+            amount: 100,
+            transactionType: "EXPENSE",
+            splits: [{ amount: 100, categoryName: "Test" }],
+          });
+
+        const transactionId = createResponse.body.data.transaction.id;
+        expect(createResponse.body.data.transaction.createdById).toBeDefined();
+        expect(
+          createResponse.body.data.transaction.lastModifiedById,
+        ).toBeNull();
+
+        // Update the transaction
+        const updateResponse = await request(app)
+          .patch(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            version: 1,
+            memo: "Updated",
+          });
+
+        expect(updateResponse.status).toBe(200);
+        expect(updateResponse.body.data.transaction.createdById).toBeDefined();
+        expect(
+          updateResponse.body.data.transaction.lastModifiedById,
+        ).toBeDefined();
+        expect(
+          updateResponse.body.data.transaction.lastModifiedByName,
+        ).toBeDefined();
+        expect(
+          updateResponse.body.data.transaction.lastModifiedByEmail,
+        ).toBeDefined();
+      });
+
+      it("should require organization membership for updates", async () => {
+        // Create another user in different org
+        const otherUserResponse = await request(app)
+          .post("/api/auth/register")
+          .send({
+            email: `other-user-${Date.now()}@example.com`,
+            password: "Password123",
+            name: "Other User",
+          });
+
+        const otherToken = otherUserResponse.body.data.token;
+
+        // Create a transaction
+        const createResponse = await request(app)
+          .post(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            description: "Test",
+            amount: 100,
+            transactionType: "EXPENSE",
+            splits: [{ amount: 100, categoryName: "Test" }],
+          });
+
+        const transactionId = createResponse.body.data.transaction.id;
+
+        // Try to update with other user's token
+        const updateResponse = await request(app)
+          .patch(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`,
+          )
+          .set("Authorization", `Bearer ${otherToken}`)
+          .send({
+            version: 1,
+            memo: "Should fail",
+          });
+
+        expect(updateResponse.status).toBe(403);
+      });
+    });
+
+    describe("Transaction Edit History", () => {
+      it("should create edit history entry on update", async () => {
+        // Create a transaction
+        const createResponse = await request(app)
+          .post(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            description: "Original",
+            amount: 100,
+            transactionType: "EXPENSE",
+            splits: [{ amount: 100, categoryName: "Food" }],
+          });
+
+        const transactionId = createResponse.body.data.transaction.id;
+
+        // Update the transaction (memo only, no splits)
+        await request(app)
+          .patch(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            version: 1,
+            memo: "Updated memo",
+          });
+
+        // Get edit history
+        const historyResponse = await request(app)
+          .get(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}/history`,
+          )
+          .set("Authorization", `Bearer ${token}`);
+
+        expect(historyResponse.status).toBe(200);
+        expect(historyResponse.body.data.history).toHaveLength(1);
+
+        const edit = historyResponse.body.data.history[0];
+        expect(edit.editedById).toBeDefined();
+        expect(edit.editedByName).toBeDefined();
+        expect(edit.editedByEmail).toBeDefined();
+        expect(edit.editType).toBe("UPDATE");
+        expect(edit.changes).toBeDefined();
+        expect(Array.isArray(edit.changes)).toBe(true);
+        expect(edit.previousState).toBeDefined();
+      });
+
+      it("should track field changes in edit history", async () => {
+        // Create a transaction
+        const createResponse = await request(app)
+          .post(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            description: "Original",
+            amount: 100,
+            transactionType: "EXPENSE",
+            splits: [{ amount: 100, categoryName: "Food" }],
+          });
+
+        const transactionId = createResponse.body.data.transaction.id;
+
+        // Update memo and transactionType (without changing splits/amount to avoid SPLIT_CHANGE)
+        await request(app)
+          .patch(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            version: 1,
+            memo: "Updated memo",
+            transactionType: "INCOME",
+          });
+
+        // Get edit history
+        const historyResponse = await request(app)
+          .get(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}/history`,
+          )
+          .set("Authorization", `Bearer ${token}`);
+
+        const changes = historyResponse.body.data.history[0].changes;
+        expect(changes).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              field: "memo",
+              oldValue: "Original",
+              newValue: "Updated memo",
+            }),
+            expect.objectContaining({
+              field: "transactionType",
+              oldValue: "EXPENSE",
+              newValue: "INCOME",
+            }),
+          ]),
+        );
+      });
+
+      it("should mark SPLIT_CHANGE edit type when splits change", async () => {
+        // Create a transaction
+        const createResponse = await request(app)
+          .post(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            description: "Test",
+            amount: 100,
+            transactionType: "EXPENSE",
+            splits: [{ amount: 100, categoryName: "Food" }],
+          });
+
+        const transactionId = createResponse.body.data.transaction.id;
+
+        // Update splits
+        await request(app)
+          .patch(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            version: 1,
+            splits: [
+              { amount: 50, categoryName: "Food" },
+              { amount: 50, categoryName: "Transport" },
+            ],
+          });
+
+        // Get edit history
+        const historyResponse = await request(app)
+          .get(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}/history`,
+          )
+          .set("Authorization", `Bearer ${token}`);
+
+        expect(historyResponse.body.data.history[0].editType).toBe(
+          "SPLIT_CHANGE",
+        );
+      });
+
+      it("should order edit history by most recent first", async () => {
+        // Create a transaction
+        const createResponse = await request(app)
+          .post(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            description: "Test",
+            amount: 100,
+            transactionType: "EXPENSE",
+            splits: [{ amount: 100, categoryName: "Test" }],
+          });
+
+        const transactionId = createResponse.body.data.transaction.id;
+
+        // Make three updates
+        await request(app)
+          .patch(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({ version: 1, memo: "Update 1" });
+
+        await request(app)
+          .patch(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({ version: 2, memo: "Update 2" });
+
+        await request(app)
+          .patch(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({ version: 3, memo: "Update 3" });
+
+        // Get edit history
+        const historyResponse = await request(app)
+          .get(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}/history`,
+          )
+          .set("Authorization", `Bearer ${token}`);
+
+        expect(historyResponse.body.data.history).toHaveLength(3);
+
+        const timestamps = historyResponse.body.data.history.map(
+          (h: { editedAt: string }) => new Date(h.editedAt).getTime(),
+        );
+
+        // Verify descending order (most recent first)
+        for (let i = 0; i < timestamps.length - 1; i++) {
+          expect(timestamps[i]).toBeGreaterThanOrEqual(timestamps[i + 1]);
+        }
+      });
+
+      it("should return empty array for transactions with no edits", async () => {
+        // Create a transaction without updates
+        const createResponse = await request(app)
+          .post(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            description: "Test",
+            amount: 100,
+            transactionType: "EXPENSE",
+            splits: [{ amount: 100, categoryName: "Test" }],
+          });
+
+        const transactionId = createResponse.body.data.transaction.id;
+
+        // Get edit history immediately
+        const historyResponse = await request(app)
+          .get(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}/history`,
+          )
+          .set("Authorization", `Bearer ${token}`);
+
+        expect(historyResponse.status).toBe(200);
+        expect(historyResponse.body.data.history).toEqual([]);
+      });
+
+      it("should require organization membership to view history", async () => {
+        // Create another user
+        const otherUserResponse = await request(app)
+          .post("/api/auth/register")
+          .send({
+            email: `other-user-history-${Date.now()}@example.com`,
+            password: "Password123",
+            name: "Other User",
+          });
+
+        const otherToken = otherUserResponse.body.data.token;
+
+        // Create a transaction
+        const createResponse = await request(app)
+          .post(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            description: "Test",
+            amount: 100,
+            transactionType: "EXPENSE",
+            splits: [{ amount: 100, categoryName: "Test" }],
+          });
+
+        const transactionId = createResponse.body.data.transaction.id;
+
+        // Try to get history with other user's token
+        const historyResponse = await request(app)
+          .get(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}/history`,
+          )
+          .set("Authorization", `Bearer ${otherToken}`);
+
+        expect(historyResponse.status).toBe(403);
+      });
+
+      it("should include previousState snapshot in edit history", async () => {
+        // Create a transaction with explicit memo
+        const createResponse = await request(app)
+          .post(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            memo: "Original memo",
+            amount: 100,
+            transactionType: "EXPENSE",
+            splits: [{ amount: 100, categoryName: "Food" }],
+          });
+
+        const transactionId = createResponse.body.data.transaction.id;
+
+        // Update the transaction
+        await request(app)
+          .patch(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            version: 1,
+            memo: "Updated memo",
+          });
+
+        // Get edit history
+        const historyResponse = await request(app)
+          .get(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}/history`,
+          )
+          .set("Authorization", `Bearer ${token}`);
+
+        const previousState =
+          historyResponse.body.data.history[0].previousState;
+        expect(previousState).toBeDefined();
+        expect(previousState.memo).toBe("Original memo");
+        expect(previousState.amount).toBe(100);
+        expect(previousState.transactionType).toBe("EXPENSE");
+        expect(previousState.splits).toBeDefined();
+        expect(Array.isArray(previousState.splits)).toBe(true);
+      });
+    });
+
+    describe("Concurrent Edit Scenarios", () => {
+      it("should handle concurrent edits by different users", async () => {
+        // Create second user in the same organization
+        testCounter++;
+        const user2Email = `concurrent-user-${Date.now()}-${testCounter}@example.com`;
+        const user2Response = await request(app)
+          .post("/api/auth/register")
+          .send({
+            email: user2Email,
+            password: "Password123",
+            name: "User 2",
+          });
+
+        const token2 = user2Response.body.data.token;
+
+        // Add user2 to the organization as ADMIN
+        const memberResponse = await request(app)
+          .post(`/api/organizations/${orgId}/members`)
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            email: user2Email,
+            role: "ADMIN",
+          });
+
+        expect(memberResponse.status).toBe(201);
+
+        // Create a transaction
+        const createResponse = await request(app)
+          .post(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            memo: "Shared transaction",
+            amount: 100,
+            transactionType: "EXPENSE",
+            splits: [{ amount: 100, categoryName: "Food" }],
+          });
+
+        const transactionId = createResponse.body.data.transaction.id;
+
+        // User 1 updates first
+        const update1 = await request(app)
+          .patch(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            version: 1,
+            memo: "User 1 update",
+          });
+
+        expect(update1.status).toBe(200);
+        expect(update1.body.data.transaction.version).toBe(2);
+
+        // User 2 tries to update with stale version
+        const update2 = await request(app)
+          .patch(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`,
+          )
+          .set("Authorization", `Bearer ${token2}`)
+          .send({
+            version: 1, // Stale
+            memo: "User 2 update",
+          });
+
+        expect(update2.status).toBe(409);
+        expect(update2.body.conflict).toBeDefined();
+        expect(update2.body.conflict.lastModifiedByName).toBe("Test User");
+      });
+
+      it("should handle rapid sequential edits correctly", async () => {
+        // Create a transaction
+        const createResponse = await request(app)
+          .post(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            description: "Test",
+            amount: 100,
+            transactionType: "EXPENSE",
+            splits: [{ amount: 100, categoryName: "Test" }],
+          });
+
+        const transactionId = createResponse.body.data.transaction.id;
+
+        // Make 5 rapid updates
+        for (let i = 1; i <= 5; i++) {
+          const updateResponse = await request(app)
+            .patch(
+              `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`,
+            )
+            .set("Authorization", `Bearer ${token}`)
+            .send({
+              version: i,
+              memo: `Update ${i}`,
+            });
+
+          expect(updateResponse.status).toBe(200);
+          expect(updateResponse.body.data.transaction.version).toBe(i + 1);
+        }
+
+        // Verify edit history has all 5 entries
+        const historyResponse = await request(app)
+          .get(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}/history`,
+          )
+          .set("Authorization", `Bearer ${token}`);
+
+        expect(historyResponse.body.data.history).toHaveLength(5);
       });
     });
   });

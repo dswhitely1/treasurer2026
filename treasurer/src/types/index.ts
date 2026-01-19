@@ -154,3 +154,106 @@ export interface ExtendedAccountTransaction extends AccountTransaction {
   vendorId: string | null
   vendor?: Vendor | null
 }
+
+/**
+ * Transaction with version for optimistic locking.
+ */
+export interface VersionedTransaction extends ExtendedAccountTransaction {
+  /** Version number for optimistic locking (incremented on each update) */
+  version: number
+}
+
+/**
+ * Conflict state when a 409 Conflict response is received.
+ */
+export interface ConflictState {
+  /** Whether there is an active conflict */
+  hasConflict: boolean
+  /** Server version number at time of conflict */
+  serverVersion: number
+  /** Server data at time of conflict */
+  serverData: VersionedTransaction | null
+  /** Client version number when edit was attempted */
+  clientVersion: number
+}
+
+/**
+ * A single entry in the edit history.
+ */
+export interface EditHistoryEntry {
+  /** Unique ID for this history entry */
+  id: string
+  /** Transaction ID this entry belongs to */
+  transactionId: string
+  /** User who made the edit */
+  userId: string
+  /** User's name or email for display */
+  userName: string
+  /** Timestamp when the edit was made */
+  editedAt: string
+  /** Version number after this edit */
+  version: number
+  /** Description of the changes made */
+  changes: EditHistoryChange[]
+}
+
+/**
+ * A single field change in an edit history entry.
+ */
+export interface EditHistoryChange {
+  /** Field that was changed */
+  field: string
+  /** Previous value (serialized to string) */
+  oldValue: string | null
+  /** New value (serialized to string) */
+  newValue: string | null
+}
+
+/**
+ * Form data structure for editing a transaction.
+ */
+export interface TransactionEditFormData {
+  /** Transaction description */
+  description: string
+  /** Transaction amount (as string for form input) */
+  amount: string
+  /** Transaction type */
+  transactionType: TransactionType
+  /** Transaction date (YYYY-MM-DD format) */
+  date: string
+  /** Whether to apply account transaction fee */
+  applyFee: boolean
+  /** Category splits */
+  splits: TransactionEditSplit[]
+  /** Vendor ID */
+  vendorId: string | null
+  /** Additional memo/notes */
+  memo: string
+}
+
+/**
+ * Split item for edit form.
+ */
+export interface TransactionEditSplit {
+  /** Unique ID for React key */
+  id: string
+  /** Split amount (as string for form input) */
+  amount: string
+  /** Category ID */
+  categoryId: string | null
+  /** Category name for display */
+  categoryName: string
+  /** Full category path for display */
+  categoryPath: string
+}
+
+/**
+ * Validation errors for transaction edit form.
+ */
+export interface TransactionEditValidationErrors {
+  description?: string
+  amount?: string
+  date?: string
+  splits?: string
+  general?: string
+}
