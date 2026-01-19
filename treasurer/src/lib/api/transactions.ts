@@ -88,16 +88,6 @@ interface VersionedTransactionResponse {
   message?: string
 }
 
-interface ConflictResponse {
-  success: false
-  message: string
-  data: {
-    serverVersion: number
-    serverData: VersionedTransaction
-    clientVersion: number
-  }
-}
-
 interface EditHistoryResponse {
   success: boolean
   data: {
@@ -122,7 +112,8 @@ export const transactionApi = {
       if (params.category) queryParams.category = params.category
       if (params.vendorId) queryParams.vendorId = params.vendorId
       if (params.limit !== undefined) queryParams.limit = String(params.limit)
-      if (params.offset !== undefined) queryParams.offset = String(params.offset)
+      if (params.offset !== undefined)
+        queryParams.offset = String(params.offset)
     }
     return api.get<TransactionsListResponse>(
       `/organizations/${orgId}/accounts/${accountId}/transactions`,
@@ -135,7 +126,12 @@ export const transactionApi = {
       `/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`
     ),
 
-  update: (orgId: string, accountId: string, transactionId: string, data: UpdateTransactionInput) =>
+  update: (
+    orgId: string,
+    accountId: string,
+    transactionId: string,
+    data: UpdateTransactionInput
+  ) =>
     api.patch<TransactionResponse>(
       `/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`,
       data
@@ -148,6 +144,10 @@ export const transactionApi = {
 
   /**
    * Get a single transaction with version info for editing.
+   *
+   * NOTE: This uses the same endpoint as `get()`, but the type annotation (VersionedTransactionResponse)
+   * documents that the response includes the version field needed for optimistic locking.
+   * The backend GET endpoint always returns version info; this method name clarifies intent.
    */
   getForEdit: (orgId: string, accountId: string, transactionId: string) =>
     api.get<VersionedTransactionResponse>(
@@ -156,7 +156,7 @@ export const transactionApi = {
 
   /**
    * Update transaction with optimistic locking.
-   * Returns 409 Conflict if version mismatch.
+   * Throws ApiError with status 409 if version mismatch (conflict data included in error.conflictData).
    */
   updateWithVersion: (
     orgId: string,
@@ -164,7 +164,7 @@ export const transactionApi = {
     transactionId: string,
     data: UpdateTransactionInput
   ) =>
-    api.patch<VersionedTransactionResponse | ConflictResponse>(
+    api.patch<VersionedTransactionResponse>(
       `/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`,
       data
     ),

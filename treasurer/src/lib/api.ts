@@ -8,11 +8,21 @@ interface RequestConfig extends RequestInit {
 /**
  * Custom error class for API errors.
  */
+/**
+ * Conflict data from a 409 response.
+ */
+export interface ConflictData {
+  serverVersion: number
+  serverData: unknown
+  clientVersion: number
+}
+
 export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
-    public errors?: Record<string, string[]>
+    public errors?: Record<string, string[]>,
+    public conflictData?: ConflictData
   ) {
     super(message)
     this.name = 'ApiError'
@@ -77,11 +87,20 @@ async function request<T>(
   if (!response.ok) {
     let errorMessage = `HTTP error! status: ${response.status}`
     let errors: Record<string, string[]> | undefined
+    let conflictData: ConflictData | undefined
 
     try {
       const errorData = (await response.json()) as {
         message?: string
         errors?: Record<string, string[]>
+        conflict?: {
+          currentVersion?: number
+          lastModifiedById?: string | null
+          lastModifiedByName?: string | null
+          lastModifiedByEmail?: string | null
+          lastModifiedAt?: string
+        }
+        currentTransaction?: unknown
       }
       if (errorData.message) {
         errorMessage = errorData.message
@@ -89,11 +108,42 @@ async function request<T>(
       if (errorData.errors) {
         errors = errorData.errors
       }
-    } catch {
-      // Use default error message if JSON parsing fails
+
+      // Extract conflict data from 409 responses
+      if (
+        response.status === 409 &&
+        errorData.conflict &&
+        errorData.currentTransaction
+      ) {
+        conflictData = {
+          serverVersion: errorData.conflict.currentVersion ?? 0,
+          serverData: errorData.currentTransaction,
+          clientVersion: errorData.conflict.currentVersion
+            ? errorData.conflict.currentVersion - 1
+            : 0,
+        }
+      }
+    } catch (parseError) {
+      // Log the JSON parsing failure with context
+      console.error('[API] Failed to parse error response JSON', {
+        status: response.status,
+        url: response.url,
+        parseError,
+        timestamp: new Date().toISOString(),
+      })
+
+      // Try to get the raw response text for debugging
+      try {
+        const text = await response.text()
+        console.error('[API] Raw error response:', {
+          text: text.substring(0, 500),
+        })
+      } catch {
+        console.error('[API] Could not read response body')
+      }
     }
 
-    throw new ApiError(response.status, errorMessage, errors)
+    throw new ApiError(response.status, errorMessage, errors, conflictData)
   }
 
   return response.json() as Promise<T>
@@ -107,7 +157,11 @@ export const api = {
     return request<T>(endpoint, { ...config, method: 'GET' })
   },
 
-  post<T>(endpoint: string, data?: unknown, config?: RequestConfig): Promise<T> {
+  post<T>(
+    endpoint: string,
+    data?: unknown,
+    config?: RequestConfig
+  ): Promise<T> {
     return request<T>(endpoint, {
       ...config,
       method: 'POST',
@@ -123,7 +177,11 @@ export const api = {
     })
   },
 
-  patch<T>(endpoint: string, data?: unknown, config?: RequestConfig): Promise<T> {
+  patch<T>(
+    endpoint: string,
+    data?: unknown,
+    config?: RequestConfig
+  ): Promise<T> {
     return request<T>(endpoint, {
       ...config,
       method: 'PATCH',

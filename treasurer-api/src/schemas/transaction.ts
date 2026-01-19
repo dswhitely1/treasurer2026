@@ -88,10 +88,11 @@ export const createTransactionSchema = z
 
 export const updateTransactionSchema = z
   .object({
-    version: z
-      .number()
-      .int()
-      .positive("Version must be a positive integer"),
+    version: z.number().int().positive("Version must be a positive integer"),
+    force: z
+      .boolean()
+      .optional()
+      .describe("If true, bypass version conflict check (force override)"),
     memo: z
       .string()
       .max(1000, "Memo must be 1000 characters or less")

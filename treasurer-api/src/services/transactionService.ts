@@ -1,6 +1,7 @@
 import { EditType, Prisma } from "@prisma/client";
 import { prisma } from "../config/database.js";
 import { AppError } from "../middleware/errorHandler.js";
+import { ERROR_IDS } from "../constants/errorIds.js";
 import { validateVendorOwnership } from "./vendorService.js";
 import type {
   CreateTransactionDto,
@@ -64,7 +65,7 @@ export class VersionConflictError extends AppError {
     conflictMetadata: ConflictMetadata,
     currentTransaction: TransactionInfo,
   ) {
-    super(message, 409);
+    super(message, 409, undefined, ERROR_IDS.TXN_VERSION_CONFLICT);
     this.name = "VersionConflictError";
     this.conflictMetadata = conflictMetadata;
     this.currentTransaction = currentTransaction;
@@ -183,7 +184,10 @@ function detectFieldChanges(
   }
 
   // Check amount change
-  if (input.amount !== undefined && input.amount !== existing.amount.toNumber()) {
+  if (
+    input.amount !== undefined &&
+    input.amount !== existing.amount.toNumber()
+  ) {
     changes.push({
       field: "amount",
       oldValue: existing.amount.toNumber(),
@@ -192,7 +196,10 @@ function detectFieldChanges(
   }
 
   // Check transactionType change
-  if (input.transactionType !== undefined && input.transactionType !== existing.transactionType) {
+  if (
+    input.transactionType !== undefined &&
+    input.transactionType !== existing.transactionType
+  ) {
     changes.push({
       field: "transactionType",
       oldValue: existing.transactionType,
@@ -222,7 +229,10 @@ function detectFieldChanges(
   }
 
   // Check destinationAccountId change
-  if (input.destinationAccountId !== undefined && input.destinationAccountId !== existing.destinationAccountId) {
+  if (
+    input.destinationAccountId !== undefined &&
+    input.destinationAccountId !== existing.destinationAccountId
+  ) {
     changes.push({
       field: "destinationAccountId",
       oldValue: existing.destinationAccountId,
@@ -242,7 +252,10 @@ function detectFieldChanges(
       oldSplits.some((old, i) => {
         const newSplit = newSplits[i];
         if (!newSplit) return true;
-        return old.amount !== newSplit.amount || old.categoryId !== newSplit.categoryId;
+        return (
+          old.amount !== newSplit.amount ||
+          old.categoryId !== newSplit.categoryId
+        );
       });
 
     if (splitsChanged) {
@@ -260,22 +273,20 @@ function detectFieldChanges(
 /**
  * Builds a snapshot of the previous transaction state for audit
  */
-function buildPreviousState(
-  existing: {
-    memo: string | null;
+function buildPreviousState(existing: {
+  memo: string | null;
+  amount: Prisma.Decimal;
+  transactionType: string;
+  date: Date;
+  feeAmount: Prisma.Decimal | null;
+  vendorId: string | null;
+  destinationAccountId: string | null;
+  splits: Array<{
+    id: string;
     amount: Prisma.Decimal;
-    transactionType: string;
-    date: Date;
-    feeAmount: Prisma.Decimal | null;
-    vendorId: string | null;
-    destinationAccountId: string | null;
-    splits: Array<{
-      id: string;
-      amount: Prisma.Decimal;
-      categoryId: string;
-    }>;
-  },
-): Record<string, unknown> {
+    categoryId: string;
+  }>;
+}): Record<string, unknown> {
   return {
     memo: existing.memo,
     amount: existing.amount.toNumber(),
@@ -303,7 +314,7 @@ async function getOrCreateCategory(
       organizationId,
       name: {
         equals: normalizedName,
-        mode: 'insensitive',
+        mode: "insensitive",
       },
       parentId: null,
     },
@@ -340,14 +351,27 @@ export async function createTransaction(
   });
 
   if (!account) {
-    throw new AppError("Account not found", 404);
+    throw new AppError(
+      "Account not found",
+      404,
+      undefined,
+      ERROR_IDS.TXN_ACCOUNT_NOT_FOUND,
+    );
   }
 
   // Validate vendor if provided
   if (input.vendorId) {
-    const isValid = await validateVendorOwnership(input.vendorId, organizationId);
+    const isValid = await validateVendorOwnership(
+      input.vendorId,
+      organizationId,
+    );
     if (!isValid) {
-      throw new AppError("Vendor not found or inactive", 404);
+      throw new AppError(
+        "Vendor not found or inactive",
+        404,
+        undefined,
+        ERROR_IDS.TXN_VENDOR_NOT_FOUND,
+      );
     }
   }
 
@@ -355,13 +379,20 @@ export async function createTransaction(
   let destinationAccount = null;
   if (input.transactionType === "TRANSFER") {
     if (!input.destinationAccountId) {
-      throw new AppError("Destination account is required for transfers", 400);
+      throw new AppError(
+        "Destination account is required for transfers",
+        400,
+        undefined,
+        ERROR_IDS.TXN_DESTINATION_REQUIRED,
+      );
     }
 
     if (input.destinationAccountId === accountId) {
       throw new AppError(
         "Source and destination accounts must be different",
         400,
+        undefined,
+        ERROR_IDS.TXN_DESTINATION_SAME_AS_SOURCE,
       );
     }
 
@@ -373,7 +404,12 @@ export async function createTransaction(
     });
 
     if (!destinationAccount) {
-      throw new AppError("Destination account not found", 404);
+      throw new AppError(
+        "Destination account not found",
+        404,
+        undefined,
+        ERROR_IDS.TXN_DESTINATION_NOT_FOUND,
+      );
     }
   }
 
@@ -397,7 +433,12 @@ export async function createTransaction(
         });
 
         if (!category) {
-          throw new AppError(`Category ${split.categoryName} not found`, 404);
+          throw new AppError(
+            `Category ${split.categoryName} not found`,
+            404,
+            undefined,
+            ERROR_IDS.TXN_CATEGORY_NOT_FOUND,
+          );
         }
 
         return split.categoryId;
@@ -407,6 +448,18 @@ export async function createTransaction(
       return getOrCreateCategory(organizationId, split.categoryName);
     }),
   );
+
+  // Log transaction creation start
+  console.log("[DB] Creating transaction", {
+    operation: "createTransaction",
+    organizationId,
+    accountId,
+    type: input.transactionType,
+    amount: input.amount,
+    splits: input.splits.length,
+    hasVendor: !!input.vendorId,
+    timestamp: new Date().toISOString(),
+  });
 
   // Create transaction with splits in a transaction
   const transaction = await prisma.$transaction(async (tx) => {
@@ -474,7 +527,8 @@ export async function createTransaction(
         },
       });
 
-      // destinationAccountId is guaranteed by Zod validation for TRANSFER transactions
+      // For TRANSFER transactions, destinationAccountId is validated by the runtime check above (line 464)
+      // Safe to assert non-null here
       await tx.account.update({
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         where: { id: input.destinationAccountId! },
@@ -501,6 +555,17 @@ export async function createTransaction(
     }
 
     return newTransaction;
+  });
+
+  // Log successful transaction creation
+  console.log("[DB] Transaction created successfully", {
+    operation: "createTransaction",
+    transactionId: transaction.id,
+    organizationId,
+    accountId,
+    type: transaction.transactionType,
+    amount: transaction.amount.toString(),
+    timestamp: new Date().toISOString(),
   });
 
   return formatTransaction(transaction);
@@ -594,6 +659,13 @@ export async function getAccountTransactions(
   };
 }
 
+/**
+ * Get a single transaction by ID.
+ *
+ * NOTE: This function returns version info for optimistic locking. The frontend has a
+ * separate `getForEdit` method that calls the same endpoint but makes the version
+ * requirement explicit through type annotations. All GET requests return version data.
+ */
 export async function getTransaction(
   organizationId: string,
   accountId: string,
@@ -684,8 +756,19 @@ export async function updateTransaction(
     throw new AppError("Transaction not found", 404);
   }
 
-  // Optimistic locking check - version must match
-  if (existing.version !== input.version) {
+  // Optimistic locking check - version must match (unless force=true)
+  if (!input.force && existing.version !== input.version) {
+    // Log version conflict detection
+    console.error("[DB] Version conflict detected", {
+      operation: "updateTransaction",
+      transactionId,
+      expectedVersion: input.version,
+      currentVersion: existing.version,
+      userId,
+      lastModifiedBy: existing.lastModifiedById,
+      timestamp: new Date().toISOString(),
+    });
+
     // Fetch the current transaction formatted for the response
     const currentFormatted = formatTransaction(existing);
 
@@ -706,7 +789,10 @@ export async function updateTransaction(
 
   // Validate vendor if provided
   if (input.vendorId !== undefined && input.vendorId !== null) {
-    const isValid = await validateVendorOwnership(input.vendorId, organizationId);
+    const isValid = await validateVendorOwnership(
+      input.vendorId,
+      organizationId,
+    );
     if (!isValid) {
       throw new AppError("Vendor not found or inactive", 404);
     }
@@ -813,6 +899,20 @@ export async function updateTransaction(
   if (fieldChanges.some((change) => change.field === "splits")) {
     editType = EditType.SPLIT_CHANGE;
   }
+
+  // Log transaction update start
+  console.log("[DB] Updating transaction", {
+    operation: "updateTransaction",
+    transactionId,
+    organizationId,
+    accountId,
+    userId,
+    version: input.version,
+    force: input.force ?? false,
+    fieldsChanged: fieldChanges.length,
+    editType,
+    timestamp: new Date().toISOString(),
+  });
 
   const transaction = await prisma.$transaction(async (tx) => {
     // Delete old splits if updating
@@ -1005,6 +1105,19 @@ export async function updateTransaction(
     }
 
     return updated;
+  });
+
+  // Log successful transaction update
+  console.log("[DB] Transaction updated successfully", {
+    operation: "updateTransaction",
+    transactionId: transaction.id,
+    organizationId,
+    accountId,
+    userId,
+    newVersion: transaction.version,
+    fieldsChanged: fieldChanges.length,
+    editType,
+    timestamp: new Date().toISOString(),
   });
 
   return formatTransaction(transaction);

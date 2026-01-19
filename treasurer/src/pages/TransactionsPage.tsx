@@ -33,8 +33,12 @@ import {
   useStatusKeyboardShortcuts,
 } from '@/features/status'
 import type { Account, AccountTransaction } from '@/types'
-import type { TransactionStatus, StatusFilterState } from '@/features/status/types'
+import type {
+  TransactionStatus,
+  StatusFilterState,
+} from '@/features/status/types'
 import { accountApi } from '@/lib/api/accounts'
+import { logger } from '@/utils/logger'
 
 /**
  * Enhanced Transaction Card with status and selection.
@@ -59,7 +63,9 @@ function EnhancedTransactionCard({
   isStatusChanging,
 }: EnhancedTransactionCardProps) {
   // Default status if not present (for backwards compatibility)
-  const status = (transaction as AccountTransaction & { status?: TransactionStatus }).status || 'UNCLEARED'
+  const status =
+    (transaction as AccountTransaction & { status?: TransactionStatus })
+      .status || 'UNCLEARED'
 
   return (
     <div className="flex items-start gap-3">
@@ -99,28 +105,51 @@ function EnhancedTransactionCard({
             ${status === 'UNCLEARED' ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : ''}
             ${status === 'CLEARED' ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' : ''}
             ${status === 'RECONCILED' ? 'bg-green-100 text-green-700' : ''}
-            ${isStatusChanging ? 'opacity-50 cursor-wait' : 'cursor-pointer'}
+            ${isStatusChanging ? 'cursor-wait opacity-50' : 'cursor-pointer'}
             focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1
           `}
           title={`Status: ${status}. Click to toggle.`}
         >
           {status === 'UNCLEARED' && (
             <svg className="h-3 w-3" viewBox="0 0 16 16" fill="none">
-              <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" />
+              <circle
+                cx="8"
+                cy="8"
+                r="6"
+                stroke="currentColor"
+                strokeWidth="2"
+              />
             </svg>
           )}
           {status === 'CLEARED' && (
             <svg className="h-3 w-3" viewBox="0 0 16 16" fill="none">
-              <path d="M3 8L6.5 11.5L13 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              <path
+                d="M3 8L6.5 11.5L13 5"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
             </svg>
           )}
           {status === 'RECONCILED' && (
             <svg className="h-3 w-3" viewBox="0 0 16 16" fill="none">
-              <path d="M1 8L4 11L9 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              <path d="M6 8L9 11L15 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              <path
+                d="M1 8L4 11L9 4"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+              <path
+                d="M6 8L9 11L15 4"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
             </svg>
           )}
-          <span className="sr-only md:not-sr-only">{status.charAt(0) + status.slice(1).toLowerCase()}</span>
+          <span className="sr-only md:not-sr-only">
+            {status.charAt(0) + status.slice(1).toLowerCase()}
+          </span>
         </button>
       </div>
     </div>
@@ -142,7 +171,9 @@ export function TransactionsPage() {
   const [account, setAccount] = useState<Account | null>(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [accountError, setAccountError] = useState<string | null>(null)
-  const [statusCounts, setStatusCounts] = useState<Record<TransactionStatus, number>>({
+  const [statusCounts, setStatusCounts] = useState<
+    Record<TransactionStatus, number>
+  >({
     UNCLEARED: 0,
     CLEARED: 0,
     RECONCILED: 0,
@@ -161,10 +192,11 @@ export function TransactionsPage() {
 
   // Custom hooks for status management
   const bulkSelection = useBulkSelection()
-  const { changeStatus, bulkChangeStatus, isChanging, isBulkChanging } = useTransactionStatus({
-    orgId: orgId || '',
-    accountId: accountId || '',
-  })
+  const { changeStatus, bulkChangeStatus, isChanging, isBulkChanging } =
+    useTransactionStatus({
+      orgId: orgId || '',
+      accountId: accountId || '',
+    })
 
   // Keyboard shortcuts
   useStatusKeyboardShortcuts({
@@ -206,7 +238,9 @@ export function TransactionsPage() {
       RECONCILED: 0,
     }
     transactions.forEach((t) => {
-      const status = (t as AccountTransaction & { status?: TransactionStatus }).status || 'UNCLEARED'
+      const status =
+        (t as AccountTransaction & { status?: TransactionStatus }).status ||
+        'UNCLEARED'
       counts[status]++
     })
     setStatusCounts(counts)
@@ -215,15 +249,17 @@ export function TransactionsPage() {
   const handleCreateTransaction = (data: CreateTransactionData) => {
     if (!orgId || !accountId) return
 
-    void dispatch(createTransaction({ orgId, accountId, data })).then((result) => {
-      if (createTransaction.fulfilled.match(result)) {
-        setShowCreateForm(false)
-        // Refresh account to get updated balance
-        void accountApi.get(orgId, accountId).then((response) => {
-          setAccount(response.data.account)
-        })
+    void dispatch(createTransaction({ orgId, accountId, data })).then(
+      (result) => {
+        if (createTransaction.fulfilled.match(result)) {
+          setShowCreateForm(false)
+          // Refresh account to get updated balance
+          void accountApi.get(orgId, accountId).then((response) => {
+            setAccount(response.data.account)
+          })
+        }
       }
-    })
+    )
   }
 
   const handleDeleteTransaction = async (transaction: AccountTransaction) => {
@@ -233,7 +269,9 @@ export function TransactionsPage() {
       `Are you sure you want to delete this transaction? This action cannot be undone.`
     )
     if (confirmed) {
-      await dispatch(deleteTransaction({ orgId, accountId, transactionId: transaction.id }))
+      await dispatch(
+        deleteTransaction({ orgId, accountId, transactionId: transaction.id })
+      )
       // Refresh account to get updated balance
       void accountApi.get(orgId, accountId).then((response) => {
         setAccount(response.data.account)
@@ -246,15 +284,24 @@ export function TransactionsPage() {
     dispatch(clearTransactionError())
   }
 
-  const handleStatusChange = async (transactionId: string, newStatus: TransactionStatus) => {
+  const handleStatusChange = async (
+    transactionId: string,
+    newStatus: TransactionStatus
+  ) => {
     const transaction = transactions.find((t) => t.id === transactionId)
     if (!transaction) return
 
-    const currentStatus = (transaction as AccountTransaction & { status?: TransactionStatus }).status || 'UNCLEARED'
+    const currentStatus =
+      (transaction as AccountTransaction & { status?: TransactionStatus })
+        .status || 'UNCLEARED'
     try {
       await changeStatus(transactionId, newStatus, currentStatus)
     } catch (err) {
-      console.error('Failed to change status:', err)
+      logger.apiError('Failed to change transaction status', err, {
+        transactionId,
+        newStatus,
+        currentStatus,
+      })
     }
   }
 
@@ -265,7 +312,11 @@ export function TransactionsPage() {
       await bulkChangeStatus(bulkSelection.selectedIds, newStatus)
       dispatch(clearSelection())
     } catch (err) {
-      console.error('Failed to bulk change status:', err)
+      logger.apiError('Failed to bulk change transaction status', err, {
+        selectedIds: bulkSelection.selectedIds,
+        newStatus,
+        count: bulkSelection.selectedIds.length,
+      })
     }
   }
 
@@ -285,7 +336,9 @@ export function TransactionsPage() {
 
   // Filter transactions based on status filter
   const filteredTransactions = transactions.filter((t) => {
-    const status = (t as AccountTransaction & { status?: TransactionStatus }).status || 'UNCLEARED'
+    const status =
+      (t as AccountTransaction & { status?: TransactionStatus }).status ||
+      'UNCLEARED'
     if (status === 'UNCLEARED' && !statusFilter.uncleared) return false
     if (status === 'CLEARED' && !statusFilter.cleared) return false
     if (status === 'RECONCILED' && !statusFilter.reconciled) return false
@@ -297,7 +350,10 @@ export function TransactionsPage() {
       <div className="mx-auto max-w-7xl py-8">
         <Card className="p-8 text-center">
           <h3 className="text-lg font-medium text-red-600">{accountError}</h3>
-          <Link to={`/organizations/${orgId}/accounts`} className="mt-4 inline-block">
+          <Link
+            to={`/organizations/${orgId}/accounts`}
+            className="mt-4 inline-block"
+          >
             <Button variant="outline">Back to Accounts</Button>
           </Link>
         </Card>
@@ -326,7 +382,8 @@ export function TransactionsPage() {
               Balance: {formatCurrency(account.balance)}
               {account.transactionFee && (
                 <span className="ml-2 text-sm text-gray-500">
-                  (Fee: {formatCurrency(account.transactionFee)} per transaction)
+                  (Fee: {formatCurrency(account.transactionFee)} per
+                  transaction)
                 </span>
               )}
             </p>
@@ -337,7 +394,9 @@ export function TransactionsPage() {
             <Button variant="outline">Reconcile</Button>
           </Link>
           {isAdmin && !showCreateForm && (
-            <Button onClick={() => setShowCreateForm(true)}>Add Transaction</Button>
+            <Button onClick={() => setShowCreateForm(true)}>
+              Add Transaction
+            </Button>
           )}
         </div>
       </div>
@@ -345,7 +404,9 @@ export function TransactionsPage() {
       {/* Summary Cards */}
       <div className="mb-8 grid gap-6 md:grid-cols-3">
         <Card className="p-6">
-          <h2 className="text-sm font-medium text-gray-500">Total Transactions</h2>
+          <h2 className="text-sm font-medium text-gray-500">
+            Total Transactions
+          </h2>
           <p className="mt-2 text-3xl font-bold text-gray-900">{total}</p>
         </Card>
         <Card className="p-6">
@@ -390,7 +451,9 @@ export function TransactionsPage() {
       {/* Create Transaction Form */}
       {showCreateForm && account && orgId && (
         <Card className="mb-8 p-6">
-          <h2 className="mb-4 text-xl font-semibold text-gray-900">Add Transaction</h2>
+          <h2 className="mb-4 text-xl font-semibold text-gray-900">
+            Add Transaction
+          </h2>
           <EnhancedTransactionForm
             account={account}
             orgId={orgId}
@@ -408,7 +471,9 @@ export function TransactionsPage() {
       ) : filteredTransactions.length === 0 ? (
         <Card className="p-8 text-center">
           <h3 className="text-lg font-medium text-gray-900">
-            {transactions.length === 0 ? 'No transactions yet' : 'No transactions match filters'}
+            {transactions.length === 0
+              ? 'No transactions yet'
+              : 'No transactions match filters'}
           </h3>
           <p className="mt-2 text-gray-600">
             {transactions.length === 0
@@ -429,8 +494,12 @@ export function TransactionsPage() {
               transaction={transaction}
               isSelected={bulkSelection.isSelected(transaction.id)}
               onToggleSelect={bulkSelection.toggle}
-              onStatusChange={(id, status) => void handleStatusChange(id, status)}
-              onEdit={isAdmin ? () => handleEditTransaction(transaction) : undefined}
+              onStatusChange={(id, status) =>
+                void handleStatusChange(id, status)
+              }
+              onEdit={
+                isAdmin ? () => handleEditTransaction(transaction) : undefined
+              }
               onDelete={isAdmin ? handleDeleteTransaction : undefined}
               isStatusChanging={isChanging}
             />

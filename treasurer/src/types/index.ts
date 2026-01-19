@@ -69,7 +69,13 @@ export interface Organization {
 }
 
 // Account types
-export type AccountType = 'CHECKING' | 'SAVINGS' | 'CREDIT_CARD' | 'CASH' | 'INVESTMENT' | 'OTHER'
+export type AccountType =
+  | 'CHECKING'
+  | 'SAVINGS'
+  | 'CREDIT_CARD'
+  | 'CASH'
+  | 'INVESTMENT'
+  | 'OTHER'
 
 export interface Account {
   id: string
@@ -166,16 +172,28 @@ export interface VersionedTransaction extends ExtendedAccountTransaction {
 /**
  * Conflict state when a 409 Conflict response is received.
  */
-export interface ConflictState {
-  /** Whether there is an active conflict */
-  hasConflict: boolean
-  /** Server version number at time of conflict */
-  serverVersion: number
-  /** Server data at time of conflict */
-  serverData: VersionedTransaction | null
-  /** Client version number when edit was attempted */
-  clientVersion: number
-}
+/**
+ * State representing conflict resolution status.
+ * Uses discriminated union to make invalid states unrepresentable.
+ */
+export type ConflictState =
+  | {
+      /** No conflict exists */
+      hasConflict: false
+      serverVersion?: never
+      serverData?: never
+      clientVersion?: never
+    }
+  | {
+      /** Conflict exists - server data must be present */
+      hasConflict: true
+      /** Server version number at time of conflict */
+      serverVersion: number
+      /** Server data at time of conflict (guaranteed non-null when conflict exists) */
+      serverData: VersionedTransaction
+      /** Client version number when edit was attempted */
+      clientVersion: number
+    }
 
 /**
  * A single entry in the edit history.

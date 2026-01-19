@@ -5,12 +5,14 @@ import { ZodError } from "zod";
 import { Prisma } from "@prisma/client";
 import { env } from "../config/env.js";
 import { sendError } from "../utils/response.js";
+import type { ErrorId } from "../constants/errorIds.js";
 
 export class AppError extends Error {
   constructor(
     public message: string,
     public statusCode: number = 400,
     public errors?: Record<string, string[]>,
+    public errorId?: ErrorId,
   ) {
     super(message);
     this.name = "AppError";
@@ -19,6 +21,17 @@ export class AppError extends Error {
 
 export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
   if (err instanceof AppError) {
+    // Log error with ID for tracking/monitoring (Sentry, etc.)
+    if (err.errorId) {
+      console.error(`[${err.errorId}] ${err.message}`, {
+        errorId: err.errorId,
+        statusCode: err.statusCode,
+        method: req.method,
+        url: req.originalUrl || req.url,
+        userId: req.user?.id,
+        timestamp: new Date().toISOString(),
+      });
+    }
     sendError(res, err.message, err.statusCode, err.errors);
     return;
   }

@@ -16,6 +16,7 @@ import {
   selectCategoryLoading,
 } from '@/store/features/categorySlice'
 import type { HierarchicalCategory } from '@/types'
+import { logger } from '@/utils/logger'
 
 /**
  * Selected category value with optional parent reference.
@@ -343,7 +344,10 @@ export function HierarchicalCategorySelector({
         void dispatch(fetchParentCategories({ orgId }))
       })
       .catch((err: unknown) => {
-        console.error('Failed to create category:', err)
+        logger.apiError('Failed to create parent category', err, {
+          orgId,
+          categoryName: newParentName,
+        })
       })
       .finally(() => {
         setIsCreatingParent(false)
@@ -383,7 +387,11 @@ export function HierarchicalCategorySelector({
         )
       })
       .catch((err: unknown) => {
-        console.error('Failed to create category:', err)
+        logger.apiError('Failed to create child category', err, {
+          orgId,
+          parentId: selectedParentId,
+          categoryName: newChildName,
+        })
       })
       .finally(() => {
         setIsCreatingChild(false)

@@ -8,6 +8,7 @@ import {
   selectEditIsSaving,
   selectEditError,
   selectHasConflict,
+  selectConflictState,
   updateEditFormData,
   setEditValidationErrors,
   clearEditValidationErrors,
@@ -78,7 +79,10 @@ interface UseTransactionEditFormReturn {
   /** Update a split's amount */
   updateSplitAmount: (index: number, value: string) => void
   /** Update a split's category */
-  updateSplitCategory: (index: number, selection: CategorySelection | null) => void
+  updateSplitCategory: (
+    index: number,
+    selection: CategorySelection | null
+  ) => void
   /** Add a new split */
   addSplit: () => void
   /** Remove a split */
@@ -126,6 +130,7 @@ export function useTransactionEditForm({
   const isSaving = useAppSelector(selectEditIsSaving)
   const error = useAppSelector(selectEditError)
   const hasConflict = useAppSelector(selectHasConflict)
+  const conflictState = useAppSelector(selectConflictState)
 
   // Calculate remaining amount
   const remainingAmount = useMemo(() => {
@@ -146,14 +151,13 @@ export function useTransactionEditForm({
     const amount = parseFloat(formData.amount)
 
     const validationChecks = {
-      // Description is optional (memo is nullable in backend)
+      // Description field maps to backend 'memo' field (which is nullable), so validation is optional
       hasValidAmount: !isNaN(amount) && amount > 0,
       hasDate: !!formData.date,
       hasSplits: formData.splits.length > 0,
       splitsBalanced: Math.abs(remainingAmount) < 0.01,
       allSplitsValid: formData.splits.every(
-        (split) =>
-          split.categoryName.trim() && parseFloat(split.amount) > 0
+        (split) => split.categoryName.trim() && parseFloat(split.amount) > 0
       ),
     }
 
@@ -344,12 +348,18 @@ export function useTransactionEditForm({
   const forceSave = useCallback(async (): Promise<void> => {
     if (!formData || !editingTransaction) return
 
+    // Use server version from conflict state, or fallback to editing transaction version
+    const versionToUse =
+      conflictState.serverVersion ?? editingTransaction.version
+
     await dispatch(
       forceSaveTransactionEdit({
         orgId,
         accountId,
         transactionId: editingTransaction.id,
         data: {
+          version: versionToUse,
+          force: true,
           description: formData.description,
           amount: parseFloat(formData.amount),
           transactionType: formData.transactionType,
@@ -366,7 +376,14 @@ export function useTransactionEditForm({
         },
       })
     )
-  }, [dispatch, formData, editingTransaction, orgId, accountId])
+  }, [
+    dispatch,
+    formData,
+    editingTransaction,
+    orgId,
+    accountId,
+    conflictState.serverVersion,
+  ])
 
   // Cancel editing
   const cancel = useCallback(() => {

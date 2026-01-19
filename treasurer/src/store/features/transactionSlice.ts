@@ -1,4 +1,8 @@
-import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit'
+import {
+  createSlice,
+  createAsyncThunk,
+  type PayloadAction,
+} from '@reduxjs/toolkit'
 import type { RootState } from '../index'
 import type {
   AccountTransaction,
@@ -17,6 +21,7 @@ import {
   type TransactionQueryParams,
 } from '@/lib/api/transactions'
 import { ApiError } from '@/lib/api'
+import { logger } from '@/utils/logger'
 
 /**
  * Edit state for the transaction being edited.
@@ -76,9 +81,6 @@ const initialEditState: EditState = {
 
 const initialConflictState: ConflictState = {
   hasConflict: false,
-  serverVersion: 0,
-  serverData: null,
-  clientVersion: 0,
 }
 
 const initialState: TransactionState = {
@@ -104,7 +106,11 @@ const initialState: TransactionState = {
 export const fetchTransactions = createAsyncThunk(
   'transaction/fetchAll',
   async (
-    { orgId, accountId, params }: { orgId: string; accountId: string; params?: TransactionQueryParams },
+    {
+      orgId,
+      accountId,
+      params,
+    }: { orgId: string; accountId: string; params?: TransactionQueryParams },
     { rejectWithValue }
   ) => {
     try {
@@ -125,7 +131,11 @@ export const fetchTransactions = createAsyncThunk(
 export const createTransaction = createAsyncThunk(
   'transaction/create',
   async (
-    { orgId, accountId, data }: { orgId: string; accountId: string; data: CreateTransactionInput },
+    {
+      orgId,
+      accountId,
+      data,
+    }: { orgId: string; accountId: string; data: CreateTransactionInput },
     { rejectWithValue }
   ) => {
     try {
@@ -151,11 +161,21 @@ export const updateTransaction = createAsyncThunk(
       accountId,
       transactionId,
       data,
-    }: { orgId: string; accountId: string; transactionId: string; data: UpdateTransactionInput },
+    }: {
+      orgId: string
+      accountId: string
+      transactionId: string
+      data: UpdateTransactionInput
+    },
     { rejectWithValue }
   ) => {
     try {
-      const response = await transactionApi.update(orgId, accountId, transactionId, data)
+      const response = await transactionApi.update(
+        orgId,
+        accountId,
+        transactionId,
+        data
+      )
       return response.data.transaction
     } catch (error) {
       if (error instanceof ApiError) {
@@ -172,7 +192,11 @@ export const updateTransaction = createAsyncThunk(
 export const deleteTransaction = createAsyncThunk(
   'transaction/delete',
   async (
-    { orgId, accountId, transactionId }: { orgId: string; accountId: string; transactionId: string },
+    {
+      orgId,
+      accountId,
+      transactionId,
+    }: { orgId: string; accountId: string; transactionId: string },
     { rejectWithValue }
   ) => {
     try {
@@ -193,7 +217,11 @@ export const deleteTransaction = createAsyncThunk(
 export const fetchCategories = createAsyncThunk(
   'transaction/fetchCategories',
   async (
-    { orgId, search, limit }: { orgId: string; search?: string; limit?: number },
+    {
+      orgId,
+      search,
+      limit,
+    }: { orgId: string; search?: string; limit?: number },
     { rejectWithValue }
   ) => {
     try {
@@ -214,14 +242,26 @@ export const fetchCategories = createAsyncThunk(
 export const fetchTransactionForEdit = createAsyncThunk(
   'transaction/fetchForEdit',
   async (
-    { orgId, accountId, transactionId }: { orgId: string; accountId: string; transactionId: string },
+    {
+      orgId,
+      accountId,
+      transactionId,
+    }: { orgId: string; accountId: string; transactionId: string },
     { rejectWithValue }
   ) => {
     try {
-      const response = await transactionApi.getForEdit(orgId, accountId, transactionId)
+      const response = await transactionApi.getForEdit(
+        orgId,
+        accountId,
+        transactionId
+      )
       return response.data.transaction
     } catch (error) {
-      console.error('[Redux] fetchTransactionForEdit error:', error)
+      logger.apiError('Failed to fetch transaction for edit', error, {
+        orgId,
+        accountId,
+        transactionId,
+      })
       if (error instanceof ApiError) {
         return rejectWithValue(error.message)
       }
@@ -232,27 +272,29 @@ export const fetchTransactionForEdit = createAsyncThunk(
 
 /**
  * Result type for save operation.
+ * Uses discriminated union to prevent invalid state combinations.
  */
-interface SaveEditResult {
-  transaction: VersionedTransaction
-}
-
-/**
- * Conflict result from save operation.
- */
-interface SaveEditConflict {
-  conflict: true
-  serverVersion: number
-  serverData: VersionedTransaction
-  clientVersion: number
-}
+type SaveEditResult =
+  | {
+      /** Save succeeded */
+      success: true
+      transaction: VersionedTransaction
+    }
+  | {
+      /** Save failed due to version conflict */
+      success: false
+      conflict: true
+      serverVersion: number
+      serverData: VersionedTransaction
+      clientVersion: number
+    }
 
 /**
  * Save transaction edit with optimistic locking.
  * Returns conflict state if version mismatch (409).
  */
 export const saveTransactionEdit = createAsyncThunk<
-  SaveEditResult | SaveEditConflict,
+  SaveEditResult,
   {
     orgId: string
     accountId: string
@@ -264,41 +306,26 @@ export const saveTransactionEdit = createAsyncThunk<
   'transaction/saveEdit',
   async ({ orgId, accountId, transactionId, data }, { rejectWithValue }) => {
     try {
-      const response = await transactionApi.updateWithVersion(orgId, accountId, transactionId, data)
-
-      // Check if it's a conflict response (success: false)
-      if (!response.success) {
-        const conflictData = response as {
-          success: false
-          data: { serverVersion: number; serverData: VersionedTransaction; clientVersion: number }
-        }
-        return {
-          conflict: true,
-          serverVersion: conflictData.data.serverVersion,
-          serverData: conflictData.data.serverData,
-          clientVersion: conflictData.data.clientVersion,
-        }
+      const response = await transactionApi.updateWithVersion(
+        orgId,
+        accountId,
+        transactionId,
+        data
+      )
+      return {
+        success: true,
+        transaction: response.data.transaction,
       }
-
-      return { transaction: response.data.transaction }
     } catch (error) {
       if (error instanceof ApiError) {
-        // Handle 409 Conflict
-        if (error.status === 409) {
-          // Parse conflict data from error if available
-          const errors = error.errors as unknown as {
-            serverVersion?: number
-            serverData?: VersionedTransaction
-            clientVersion?: number
-          } | undefined
-
-          if (errors?.serverVersion !== undefined && errors?.serverData && errors?.clientVersion !== undefined) {
-            return {
-              conflict: true,
-              serverVersion: errors.serverVersion,
-              serverData: errors.serverData,
-              clientVersion: errors.clientVersion,
-            }
+        // Handle 409 Conflict - conflict data is extracted by API client
+        if (error.status === 409 && error.conflictData) {
+          return {
+            success: false,
+            conflict: true,
+            serverVersion: error.conflictData.serverVersion,
+            serverData: error.conflictData.serverData as VersionedTransaction,
+            clientVersion: error.conflictData.clientVersion,
           }
         }
         return rejectWithValue(error.message)
@@ -328,10 +355,15 @@ export const forceSaveTransactionEdit = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      const response = await transactionApi.forceSave(orgId, accountId, transactionId, {
-        ...data,
-        force: true,
-      })
+      const response = await transactionApi.forceSave(
+        orgId,
+        accountId,
+        transactionId,
+        {
+          ...data,
+          force: true,
+        }
+      )
       return response.data.transaction
     } catch (error) {
       if (error instanceof ApiError) {
@@ -362,7 +394,12 @@ export const fetchEditHistory = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      const response = await transactionApi.getEditHistory(orgId, accountId, transactionId, params)
+      const response = await transactionApi.getEditHistory(
+        orgId,
+        accountId,
+        transactionId,
+        params
+      )
       return response.data
     } catch (error) {
       if (error instanceof ApiError) {
@@ -377,7 +414,10 @@ const transactionSlice = createSlice({
   name: 'transaction',
   initialState,
   reducers: {
-    selectTransaction: (state, action: PayloadAction<AccountTransaction | null>) => {
+    selectTransaction: (
+      state,
+      action: PayloadAction<AccountTransaction | null>
+    ) => {
       state.selectedTransaction = action.payload
     },
     clearTransactions: (state) => {
@@ -421,7 +461,10 @@ const transactionSlice = createSlice({
     /**
      * Update the edit form data.
      */
-    updateEditFormData: (state, action: PayloadAction<Partial<TransactionEditFormData>>) => {
+    updateEditFormData: (
+      state,
+      action: PayloadAction<Partial<TransactionEditFormData>>
+    ) => {
       if (state.editState.editFormData) {
         state.editState.editFormData = {
           ...state.editState.editFormData,
@@ -429,13 +472,18 @@ const transactionSlice = createSlice({
         }
         state.editState.isDirty = true
       } else {
-        console.warn('[Redux] updateEditFormData called but editFormData is null')
+        console.warn(
+          '[Redux] updateEditFormData called but editFormData is null'
+        )
       }
     },
     /**
      * Set validation errors for the edit form.
      */
-    setEditValidationErrors: (state, action: PayloadAction<TransactionEditValidationErrors>) => {
+    setEditValidationErrors: (
+      state,
+      action: PayloadAction<TransactionEditValidationErrors>
+    ) => {
       state.editState.validationErrors = action.payload
     },
     /**
@@ -506,7 +554,9 @@ const transactionSlice = createSlice({
       })
       .addCase(updateTransaction.fulfilled, (state, action) => {
         state.isLoading = false
-        const index = state.transactions.findIndex((t) => t.id === action.payload.id)
+        const index = state.transactions.findIndex(
+          (t) => t.id === action.payload.id
+        )
         if (index !== -1) {
           state.transactions[index] = action.payload
         }
@@ -525,7 +575,9 @@ const transactionSlice = createSlice({
       })
       .addCase(deleteTransaction.fulfilled, (state, action) => {
         state.isLoading = false
-        state.transactions = state.transactions.filter((t) => t.id !== action.payload)
+        state.transactions = state.transactions.filter(
+          (t) => t.id !== action.payload
+        )
         state.total -= 1
         if (state.selectedTransaction?.id === action.payload) {
           state.selectedTransaction = null
@@ -571,7 +623,10 @@ const transactionSlice = createSlice({
         state.editState.isDirty = false
       })
       .addCase(fetchTransactionForEdit.rejected, (state, action) => {
-        console.error('[Redux] fetchTransactionForEdit.rejected:', action.payload)
+        logger.error('fetchTransactionForEdit rejected', {
+          error: action.payload,
+          meta: action.meta,
+        })
         state.editState.isFetching = false
         state.editState.error = action.payload as string
       })
@@ -583,15 +638,16 @@ const transactionSlice = createSlice({
       .addCase(saveTransactionEdit.fulfilled, (state, action) => {
         state.editState.isSaving = false
 
-        // Check if it's a conflict response
-        if ('conflict' in action.payload && action.payload.conflict) {
+        // Use discriminated union to check result type
+        if (!action.payload.success) {
+          // Conflict response
           state.conflictState = {
             hasConflict: true,
             serverVersion: action.payload.serverVersion,
             serverData: action.payload.serverData,
             clientVersion: action.payload.clientVersion,
           }
-        } else if ('transaction' in action.payload) {
+        } else {
           // Success - update the transaction in the list
           const updated = action.payload.transaction
           const index = state.transactions.findIndex((t) => t.id === updated.id)
@@ -669,31 +725,51 @@ export const {
 } = transactionSlice.actions
 
 // Selectors
-export const selectTransactions = (state: RootState) => state.transaction.transactions
-export const selectTransactionTotal = (state: RootState) => state.transaction.total
-export const selectSelectedTransaction = (state: RootState) => state.transaction.selectedTransaction
-export const selectTransactionLoading = (state: RootState) => state.transaction.isLoading
-export const selectTransactionError = (state: RootState) => state.transaction.error
-export const selectCategories = (state: RootState) => state.transaction.categories
+export const selectTransactions = (state: RootState) =>
+  state.transaction.transactions
+export const selectTransactionTotal = (state: RootState) =>
+  state.transaction.total
+export const selectSelectedTransaction = (state: RootState) =>
+  state.transaction.selectedTransaction
+export const selectTransactionLoading = (state: RootState) =>
+  state.transaction.isLoading
+export const selectTransactionError = (state: RootState) =>
+  state.transaction.error
+export const selectCategories = (state: RootState) =>
+  state.transaction.categories
 
 // Edit modal selectors
-export const selectIsEditModalOpen = (state: RootState) => state.transaction.editState.isOpen
-export const selectEditingTransaction = (state: RootState) => state.transaction.editState.editingTransaction
-export const selectEditFormData = (state: RootState) => state.transaction.editState.editFormData
-export const selectEditIsDirty = (state: RootState) => state.transaction.editState.isDirty
-export const selectEditValidationErrors = (state: RootState) => state.transaction.editState.validationErrors
-export const selectEditIsFetching = (state: RootState) => state.transaction.editState.isFetching
-export const selectEditIsSaving = (state: RootState) => state.transaction.editState.isSaving
-export const selectEditError = (state: RootState) => state.transaction.editState.error
+export const selectIsEditModalOpen = (state: RootState) =>
+  state.transaction.editState.isOpen
+export const selectEditingTransaction = (state: RootState) =>
+  state.transaction.editState.editingTransaction
+export const selectEditFormData = (state: RootState) =>
+  state.transaction.editState.editFormData
+export const selectEditIsDirty = (state: RootState) =>
+  state.transaction.editState.isDirty
+export const selectEditValidationErrors = (state: RootState) =>
+  state.transaction.editState.validationErrors
+export const selectEditIsFetching = (state: RootState) =>
+  state.transaction.editState.isFetching
+export const selectEditIsSaving = (state: RootState) =>
+  state.transaction.editState.isSaving
+export const selectEditError = (state: RootState) =>
+  state.transaction.editState.error
 
 // Conflict selectors
-export const selectConflictState = (state: RootState) => state.transaction.conflictState
-export const selectHasConflict = (state: RootState) => state.transaction.conflictState.hasConflict
+export const selectConflictState = (state: RootState) =>
+  state.transaction.conflictState
+export const selectHasConflict = (state: RootState) =>
+  state.transaction.conflictState.hasConflict
 
 // Edit history selectors
-export const selectEditHistory = (state: RootState) => state.transaction.editHistory.entries
-export const selectEditHistoryTotal = (state: RootState) => state.transaction.editHistory.total
-export const selectEditHistoryLoading = (state: RootState) => state.transaction.editHistory.isLoading
-export const selectEditHistoryError = (state: RootState) => state.transaction.editHistory.error
+export const selectEditHistory = (state: RootState) =>
+  state.transaction.editHistory.entries
+export const selectEditHistoryTotal = (state: RootState) =>
+  state.transaction.editHistory.total
+export const selectEditHistoryLoading = (state: RootState) =>
+  state.transaction.editHistory.isLoading
+export const selectEditHistoryError = (state: RootState) =>
+  state.transaction.editHistory.error
 
 export default transactionSlice.reducer
