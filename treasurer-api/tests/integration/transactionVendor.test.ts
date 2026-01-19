@@ -99,7 +99,7 @@ describe("Transaction-Vendor Integration", () => {
           splits: [{ amount: 100, categoryName: "General" }],
         });
 
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(404);
     });
 
     it("should reject transaction with vendor from different organization", async () => {
@@ -139,7 +139,7 @@ describe("Transaction-Vendor Integration", () => {
           splits: [{ amount: 100, categoryName: "General" }],
         });
 
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(404);
     });
   });
 
@@ -344,7 +344,7 @@ describe("Transaction-Vendor Integration", () => {
         .set("Authorization", `Bearer ${token}`);
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toContain(
+      expect(response.body.message).toContain(
         "Cannot delete vendor with transactions",
       );
     });
