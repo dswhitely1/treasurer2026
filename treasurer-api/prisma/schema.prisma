@@ -30,6 +30,10 @@ model User {
 
   memberships            OrganizationMember[]
   statusChanges          TransactionStatusHistory[]
+  transactionsCreated    Transaction[]            @relation("TransactionsCreated")
+  transactionsModified   Transaction[]            @relation("TransactionsModified")
+  transactionsDeleted    Transaction[]            @relation("TransactionsDeleted")
+  transactionEdits       TransactionEditHistory[] @relation("TransactionEdits")
 
   @@map("users")
 }
@@ -107,6 +111,14 @@ enum TransactionStatus {
   RECONCILED
 }
 
+enum EditType {
+  CREATE
+  UPDATE
+  DELETE
+  RESTORE
+  SPLIT_CHANGE
+}
+
 model Transaction {
   id                   String            @id @default(uuid())
   memo                 String?
@@ -120,14 +132,23 @@ model Transaction {
   accountId            String            @map("account_id")
   destinationAccountId String?           @map("destination_account_id")
   vendorId             String?           @map("vendor_id")
+  createdById          String?           @map("created_by_id")
+  lastModifiedById     String?           @map("last_modified_by_id")
+  version              Int               @default(1)
+  deletedAt            DateTime?         @map("deleted_at")
+  deletedById          String?           @map("deleted_by_id")
   createdAt            DateTime          @default(now()) @map("created_at")
   updatedAt            DateTime          @updatedAt @map("updated_at")
 
   account            Account                    @relation("SourceTransactions", fields: [accountId], references: [id], onDelete: Cascade)
   destinationAccount Account?                   @relation("DestinationTransactions", fields: [destinationAccountId], references: [id], onDelete: SetNull)
   vendor             Vendor?                    @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  createdBy          User?                      @relation("TransactionsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  lastModifiedBy     User?                      @relation("TransactionsModified", fields: [lastModifiedById], references: [id], onDelete: SetNull)
+  deletedBy          User?                      @relation("TransactionsDeleted", fields: [deletedById], references: [id], onDelete: SetNull)
   splits             TransactionSplit[]
   statusHistory      TransactionStatusHistory[]
+  editHistory        TransactionEditHistory[]
 
   @@index([accountId])
   @@index([destinationAccountId])
@@ -136,6 +157,10 @@ model Transaction {
   @@index([status])
   @@index([accountId, status])
   @@index([accountId, status, date])
+  @@index([createdById])
+  @@index([lastModifiedById])
+  @@index([deletedAt])
+  @@index([deletedById])
   @@map("transactions")
 }
 
@@ -154,6 +179,26 @@ model TransactionStatusHistory {
   @@index([transactionId])
   @@index([changedAt])
   @@map("transaction_status_history")
+}
+
+model TransactionEditHistory {
+  id            String    @id @default(uuid())
+  transactionId String    @map("transaction_id")
+  editedById    String    @map("edited_by_id")
+  editedAt      DateTime  @default(now()) @map("edited_at")
+  editType      EditType  @map("edit_type")
+  changes       Json
+  previousState Json?     @map("previous_state")
+
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  editedBy    User        @relation("TransactionEdits", fields: [editedById], references: [id], onDelete: SetNull)
+
+  @@index([transactionId])
+  @@index([editedById])
+  @@index([editedAt])
+  @@index([editType])
+  @@index([transactionId, editedAt])
+  @@map("transaction_edit_history")
 }
 
 model TransactionSplit {

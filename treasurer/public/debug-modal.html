@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Debug Modal Issue</title>
+</head>
+<body>
+<h1>Open browser console and check for errors</h1>
+<script>
+// Check localStorage for auth token
+const token = localStorage.getItem('treasurer_token');
+console.log('Auth token:', token ? 'Present' : 'Missing');
+
+// Try to fetch a transaction
+const fetchTransaction = async () => {
+  const orgId = 'test-org';  
+  const accountId = 'test-account';
+  const transactionId = 'test-transaction';
+  
+  try {
+    const response = await fetch(`http://localhost:3001/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    const data = await response.json();
+    console.log('Transaction fetch response:', data);
+  } catch (error) {
+    console.error('Transaction fetch error:', error);
+  }
+};
+
+if (token) {
+  console.log('Attempting to fetch transaction...');
+  fetchTransaction();
+} else {
+  console.error('No auth token found - please log in first');
+}
+</script>
+</body>
+</html>

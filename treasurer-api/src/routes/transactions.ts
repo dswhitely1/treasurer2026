@@ -10,7 +10,7 @@ import {
   accountTransactionParamSchema,
   transactionQuerySchema,
 } from '../schemas/transaction.js'
-import { create, list, get, update, remove } from '../controllers/transactionController.js'
+import { create, list, get, update, remove, getEditHistory } from '../controllers/transactionController.js'
 
 const router: RouterType = Router({ mergeParams: true })
 
@@ -53,6 +53,14 @@ router.delete(
   requireOrgRole('OWNER', 'ADMIN'),
   preventReconciledModification(),
   remove
+)
+
+// Transaction edit history - GET /organizations/:orgId/accounts/:accountId/transactions/:transactionId/history
+router.get(
+  '/:transactionId/history',
+  validate({ params: transactionIdParamSchema }),
+  requireOrgMembership(),
+  getEditHistory
 )
 
 export default router

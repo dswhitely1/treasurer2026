@@ -13,6 +13,7 @@ import {
 } from '@/store/features/vendorSlice'
 import { useDebounce } from '@/hooks'
 import type { Vendor } from '@/types'
+import { logger } from '@/utils/logger'
 
 /**
  * Props for the VendorSelector component.
@@ -222,7 +223,10 @@ export function VendorSelector({
           setTimeout(() => setIsSelecting(false), 100)
         })
         .catch((error: unknown) => {
-          console.error('Failed to create vendor:', error)
+          logger.apiError('Failed to create vendor', error, {
+            orgId,
+            vendorName: name,
+          })
         })
         .finally(() => {
           setIsCreating(false)

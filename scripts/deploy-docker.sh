@@ -30,7 +30,7 @@ warning() {
 }
 
 # Default values
-ENVIRONMENT="dev"
+ENVIRONMENT="prod"
 ACTION="up"
 BUILD=false
 DETACH=false
