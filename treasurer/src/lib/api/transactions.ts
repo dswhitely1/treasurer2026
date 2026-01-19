@@ -38,6 +38,8 @@ export interface UpdateTransactionInput {
   memo?: string | null
   /** Version for optimistic locking (required when updating) */
   version?: number
+  /** Force save even if version conflicts exist */
+  force?: boolean
 }
 
 /**
