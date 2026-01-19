@@ -1499,7 +1499,17 @@ describe("Transaction Routes", () => {
         const transactionId = createResponse.body.data.transaction.id;
         expect(createResponse.status).toBe(201);
 
-        // Reconcile the transaction
+        // Clear the transaction first (UNCLEARED -> CLEARED)
+        const clearResponse = await request(app)
+          .patch(
+            `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}/status`,
+          )
+          .set("Authorization", `Bearer ${token}`)
+          .send({ status: "CLEARED" });
+
+        expect(clearResponse.status).toBe(200);
+
+        // Reconcile the transaction (CLEARED -> RECONCILED)
         const reconcileResponse = await request(app)
           .patch(
             `/api/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}/status`,

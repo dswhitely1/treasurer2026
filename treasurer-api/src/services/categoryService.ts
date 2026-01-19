@@ -392,9 +392,9 @@ export async function updateCategory(
       organizationId,
       input.parentId,
     );
-    if (newDepth >= MAX_CATEGORY_DEPTH) {
+    if (newDepth > MAX_CATEGORY_DEPTH) {
       throw new AppError(
-        `Category depth cannot exceed ${String(MAX_CATEGORY_DEPTH)} levels`,
+        `Category depth cannot exceed ${String(MAX_CATEGORY_DEPTH)}`,
         400,
       );
     }

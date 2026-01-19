@@ -105,7 +105,7 @@ describe("Category Service", () => {
           name: "Level 4",
           parentId: level3.id,
         }),
-      ).rejects.toThrow("Category depth cannot exceed 3 levels");
+      ).rejects.toThrow("Category depth cannot exceed 3");
     });
 
     it("should throw error for duplicate category name at same level", async () => {
@@ -385,36 +385,37 @@ describe("Category Service", () => {
       expect(updatedChild.depth).toBe(2); // new parent (1) + 1
     });
 
-    it("should throw error if moving would exceed max depth", async () => {
-      const level0 = await createCategory(orgId, { name: "Level 0" });
-      const level1 = await createCategory(orgId, {
-        name: "Level 1",
-        parentId: level0.id,
-      });
-      const level2 = await createCategory(orgId, {
-        name: "Level 2",
-        parentId: level1.id,
+    it("should allow moving to max depth", async () => {
+      // Create category to move
+      const categoryToMove = await createCategory(orgId, {
+        name: "Category to Move",
       });
 
-      // Try to move level2 under a deep hierarchy
+      // Create deep hierarchy (0 -> 1 -> 2)
       const deep1 = await createCategory(orgId, { name: "Deep 1" });
       const deep2 = await createCategory(orgId, {
         name: "Deep 2",
         parentId: deep1.id,
       });
+      const deep3 = await createCategory(orgId, {
+        name: "Deep 3",
+        parentId: deep2.id,
+      });
 
-      await expect(
-        updateCategory(orgId, level2.id, { parentId: deep2.id }),
-      ).rejects.toThrow("Category depth cannot exceed 3 levels");
+      // Move categoryToMove under deep3 (depth 3, which is max allowed)
+      const updated = await updateCategory(orgId, categoryToMove.id, {
+        parentId: deep3.id,
+      });
+      expect(updated.depth).toBe(3);
     });
 
-    it("should throw error if moving would cause descendants to exceed max depth", async () => {
+    it("should allow moving with descendants to max depth", async () => {
       const parent = await createCategory(orgId, { name: "Parent" });
       const child = await createCategory(orgId, {
         name: "Child",
         parentId: parent.id,
       });
-      const _grandchild = await createCategory(orgId, {
+      const grandchild = await createCategory(orgId, {
         name: "Grandchild",
         parentId: child.id,
       });
@@ -426,12 +427,15 @@ describe("Category Service", () => {
         parentId: deep1.id,
       });
 
-      // Try to move child (which has _grandchild) under deep2
-      await expect(
-        updateCategory(orgId, child.id, { parentId: deep2.id }),
-      ).rejects.toThrow(
-        "Moving this category would cause descendants to exceed 3 levels",
-      );
+      // Move child (which has grandchild) under deep2
+      // child will be at depth 2, grandchild at depth 3 (max allowed)
+      const updated = await updateCategory(orgId, child.id, {
+        parentId: deep2.id,
+      });
+      expect(updated.depth).toBe(2);
+
+      const updatedGrandchild = await getCategory(orgId, grandchild.id);
+      expect(updatedGrandchild.depth).toBe(3);
     });
 
     it("should allow setting parent to null (move to root)", async () => {

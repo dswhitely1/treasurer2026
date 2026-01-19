@@ -210,12 +210,13 @@ describe("Vendor Service", () => {
       await createVendor(orgId, { name: "Walmart" });
     });
 
-    it("should search vendors by name prefix", async () => {
+    it("should search vendors by name substring", async () => {
       const results = await searchVendors(orgId, { q: "A", limit: 10 });
 
-      expect(results).toHaveLength(2);
+      expect(results).toHaveLength(3); // Amazon, Apple Store, Walmart
       expect(results.some((v) => v.name === "Amazon")).toBe(true);
       expect(results.some((v) => v.name === "Apple Store")).toBe(true);
+      expect(results.some((v) => v.name === "Walmart")).toBe(true);
     });
 
     it("should search vendors case-insensitively", async () => {
