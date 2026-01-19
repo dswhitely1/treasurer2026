@@ -756,6 +756,14 @@ export async function updateTransaction(
     throw new AppError("Transaction not found", 404);
   }
 
+  // Check if transaction is reconciled
+  if (existing.reconciledAt !== null) {
+    throw new AppError(
+      "Cannot modify reconciled transactions. Please unreconcile first.",
+      400,
+    );
+  }
+
   // Optimistic locking check - version must match (unless force=true)
   if (!input.force && existing.version !== input.version) {
     // Log version conflict detection

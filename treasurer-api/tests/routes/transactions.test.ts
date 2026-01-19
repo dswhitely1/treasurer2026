@@ -1946,7 +1946,7 @@ describe("Transaction Routes", () => {
           )
           .set("Authorization", `Bearer ${token}`)
           .send({
-            description: "Original",
+            memo: "Original",
             amount: 100,
             transactionType: "EXPENSE",
             splits: [{ amount: 100, categoryName: "Food" }],
@@ -2212,17 +2212,25 @@ describe("Transaction Routes", () => {
           });
 
         const token2 = user2Response.body.data.token;
+        const user2Id = user2Response.body.data.user.id;
 
-        // Add user2 to the organization as ADMIN
+        // Add user2 to the organization
         const memberResponse = await request(app)
           .post(`/api/organizations/${orgId}/members`)
           .set("Authorization", `Bearer ${token}`)
           .send({
             email: user2Email,
-            role: "ADMIN",
           });
 
         expect(memberResponse.status).toBe(201);
+
+        // Update user2's role to ADMIN
+        await request(app)
+          .patch(`/api/organizations/${orgId}/members/${user2Id}`)
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            role: "ADMIN",
+          });
 
         // Create a transaction
         const createResponse = await request(app)
