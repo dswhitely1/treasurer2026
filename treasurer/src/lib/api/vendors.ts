@@ -36,9 +36,12 @@ interface VendorResponse {
 
 interface VendorsListResponse {
   success: boolean
-  data: {
-    vendors: Vendor[]
+  data: Vendor[]
+  pagination: {
     total: number
+    limit: number
+    page: number
+    totalPages: number
   }
 }
 
@@ -76,7 +79,8 @@ export const vendorApi = {
     if (params) {
       if (params.search) queryParams.search = params.search
       if (params.limit !== undefined) queryParams.limit = String(params.limit)
-      if (params.offset !== undefined) queryParams.offset = String(params.offset)
+      if (params.offset !== undefined)
+        queryParams.offset = String(params.offset)
     }
     return api.get<VendorsListResponse>(
       `/organizations/${orgId}/vendors`,

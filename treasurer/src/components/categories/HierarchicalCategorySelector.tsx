@@ -299,30 +299,15 @@ export function HierarchicalCategorySelector({
       setSelectedParentId(newParentId)
       setSelectedChildId(null) // Clear child only when parent changes
 
-      // If no child categories will be loaded, emit selection now
+      // Always emit parent selection, regardless of whether it has children
+      // User can optionally drill down to select a child category
       if (newParentId) {
-        const parent = parentCategories.find((c) => c.id === newParentId)
-        if (parent) {
-          const hasChildren =
-            categoryTree.find((c) => c.id === newParentId)?.children?.length ??
-            0
-          // Only emit parent selection if it has no children
-          if (hasChildren === 0) {
-            onChange(buildSelection(newParentId, null))
-          }
-        }
+        onChange(buildSelection(newParentId, null))
       } else {
         onChange(null)
       }
     },
-    [
-      selectedParentId,
-      selectedChildId,
-      parentCategories,
-      categoryTree,
-      buildSelection,
-      onChange,
-    ]
+    [selectedParentId, selectedChildId, buildSelection, onChange]
   )
 
   // Handle child selection

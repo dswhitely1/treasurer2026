@@ -79,7 +79,11 @@ export const fetchVendors = createAsyncThunk(
   ) => {
     try {
       const response = await vendorApi.list(orgId, params)
-      return response.data
+      // Backend returns paginated response: { data: Vendor[], pagination: { total, ... } }
+      return {
+        vendors: response.data,
+        total: response.pagination.total,
+      }
     } catch (error) {
       if (error instanceof ApiError) {
         return rejectWithValue(error.message)
