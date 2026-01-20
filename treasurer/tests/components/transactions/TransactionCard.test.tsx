@@ -32,9 +32,10 @@ const mockTransaction: AccountTransaction = {
 }
 
 describe('TransactionCard', () => {
-  it('renders transaction description', () => {
+  it('renders transaction with vendor name and categories', () => {
     render(<TransactionCard transaction={mockTransaction} />)
-    expect(screen.getByText('Grocery shopping')).toBeInTheDocument()
+    // With multiple splits, shows "Transaction - Food/Household" (vendor is null)
+    expect(screen.getByText('Transaction - Food/Household')).toBeInTheDocument()
   })
 
   it('renders transaction amount as currency with sign', () => {
