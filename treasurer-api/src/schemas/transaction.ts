@@ -26,6 +26,11 @@ export const transactionSplitSchema = z.object({
 
 export const createTransactionSchema = z
   .object({
+    description: z
+      .string()
+      .max(1000, "Description must be 1000 characters or less")
+      .optional()
+      .nullable(),
     memo: z
       .string()
       .max(1000, "Memo must be 1000 characters or less")
@@ -93,6 +98,11 @@ export const updateTransactionSchema = z
       .boolean()
       .optional()
       .describe("If true, bypass version conflict check (force override)"),
+    description: z
+      .string()
+      .max(1000, "Description must be 1000 characters or less")
+      .nullable()
+      .optional(),
     memo: z
       .string()
       .max(1000, "Memo must be 1000 characters or less")

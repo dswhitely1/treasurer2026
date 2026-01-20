@@ -31,7 +31,7 @@ import type {
   ReconciliationSummary,
 } from '../../types'
 
-const API_BASE_URL = 'http://localhost:3001/api'
+const API_BASE_URL = '/api'
 
 // Mock server setup
 const server = setupServer()

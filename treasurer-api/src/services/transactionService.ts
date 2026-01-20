@@ -74,6 +74,7 @@ export class VersionConflictError extends AppError {
 
 interface TransactionWithSplits {
   id: string;
+  description: string | null;
   memo: string | null;
   amount: Prisma.Decimal;
   transactionType: string;
@@ -120,7 +121,7 @@ function formatTransaction(
 ): TransactionInfo {
   return {
     id: transaction.id,
-    description: transaction.memo,
+    description: transaction.description,
     memo: transaction.memo,
     amount: transaction.amount.toString(),
     transactionType: transaction.transactionType as TransactionType,
@@ -156,6 +157,7 @@ function formatTransaction(
  */
 function detectFieldChanges(
   existing: {
+    description: string | null;
     memo: string | null;
     amount: Prisma.Decimal;
     transactionType: string;
@@ -173,6 +175,18 @@ function detectFieldChanges(
   newSplits?: Array<{ amount: number; categoryId: string }>,
 ): FieldChange[] {
   const changes: FieldChange[] = [];
+
+  // Check description change
+  if (
+    input.description !== undefined &&
+    input.description !== existing.description
+  ) {
+    changes.push({
+      field: "description",
+      oldValue: existing.description,
+      newValue: input.description,
+    });
+  }
 
   // Check memo change
   if (input.memo !== undefined && input.memo !== existing.memo) {
@@ -274,6 +288,7 @@ function detectFieldChanges(
  * Builds a snapshot of the previous transaction state for audit
  */
 function buildPreviousState(existing: {
+  description: string | null;
   memo: string | null;
   amount: Prisma.Decimal;
   transactionType: string;
@@ -288,6 +303,7 @@ function buildPreviousState(existing: {
   }>;
 }): Record<string, unknown> {
   return {
+    description: existing.description,
     memo: existing.memo,
     amount: existing.amount.toNumber(),
     transactionType: existing.transactionType,
@@ -465,6 +481,7 @@ export async function createTransaction(
   const transaction = await prisma.$transaction(async (tx) => {
     const newTransaction = await tx.transaction.create({
       data: {
+        description: input.description,
         memo: input.memo,
         amount: input.amount,
         transactionType: input.transactionType,
@@ -932,6 +949,9 @@ export async function updateTransaction(
 
     // Build update data with version increment and lastModifiedById
     const updateData: Prisma.TransactionUpdateInput = {
+      ...(input.description !== undefined && {
+        description: input.description,
+      }),
       ...(input.memo !== undefined && {
         memo: input.memo,
       }),

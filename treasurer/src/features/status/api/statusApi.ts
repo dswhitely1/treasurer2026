@@ -27,7 +27,7 @@ import type {
   ActiveStatusFilters,
 } from '../types'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api'
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
 /**
  * Cache tag types for invalidation.
@@ -133,7 +133,15 @@ export const statusApi = createApi({
       GetTransactionsWithStatusResponse['data'],
       GetTransactionsWithStatusParams
     >({
-      query: ({ orgId, accountId, statusFilter, startDate, endDate, limit, offset }) => {
+      query: ({
+        orgId,
+        accountId,
+        statusFilter,
+        startDate,
+        endDate,
+        limit,
+        offset,
+      }) => {
         const params = new URLSearchParams()
         if (statusFilter && statusFilter.length > 0) {
           params.set('status', statusFilter.join(','))
@@ -151,7 +159,8 @@ export const statusApi = createApi({
           method: 'GET',
         }
       },
-      transformResponse: (response: GetTransactionsWithStatusResponse) => response.data,
+      transformResponse: (response: GetTransactionsWithStatusResponse) =>
+        response.data,
       providesTags: (result, _error, { accountId }) =>
         result
           ? [
@@ -193,7 +202,9 @@ export const statusApi = createApi({
             'getTransactionsWithStatus',
             { orgId, accountId },
             (draft) => {
-              const transaction = draft.transactions.find((t) => t.id === transactionId)
+              const transaction = draft.transactions.find(
+                (t) => t.id === transactionId
+              )
               if (transaction) {
                 transaction.status = newStatus
                 transaction.statusChangedAt = new Date().toISOString()
@@ -280,7 +291,8 @@ export const statusApi = createApi({
         url: `/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}/status/history`,
         method: 'GET',
       }),
-      transformResponse: (response: StatusHistoryResponse) => response.data.history,
+      transformResponse: (response: StatusHistoryResponse) =>
+        response.data.history,
       providesTags: (_result, _error, { transactionId }) => [
         { type: 'StatusHistory', id: transactionId },
       ],
@@ -298,7 +310,8 @@ export const statusApi = createApi({
         url: `/organizations/${orgId}/accounts/${accountId}/transactions/status/summary`,
         method: 'GET',
       }),
-      transformResponse: (response: ReconciliationSummaryResponse) => response.data,
+      transformResponse: (response: ReconciliationSummaryResponse) =>
+        response.data,
       providesTags: (_result, _error, { accountId }) => [
         { type: 'ReconciliationSummary', id: accountId },
       ],

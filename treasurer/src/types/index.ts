@@ -104,11 +104,13 @@ export interface TransactionSplit {
 
 export interface AccountTransaction {
   id: string
-  description: string
+  description: string | null
   amount: string
   transactionType: TransactionType
   date: string
   feeAmount: string | null
+  vendorId: string | null
+  vendorName: string | null
   accountId: string
   splits: TransactionSplit[]
   createdAt: string

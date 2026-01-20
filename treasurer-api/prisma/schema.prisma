@@ -121,6 +121,7 @@ enum EditType {
 
 model Transaction {
   id                   String            @id @default(uuid())
+  description          String?
   memo                 String?
   amount               Decimal           @db.Decimal(19, 4)
   transactionType      TransactionType   @default(EXPENSE) @map("transaction_type")

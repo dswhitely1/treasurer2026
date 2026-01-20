@@ -1,6 +1,6 @@
 import { memo } from 'react'
 import { Card } from '@/components/ui'
-import type { AccountTransaction } from '@/types'
+import type { AccountTransaction, TransactionSplit } from '@/types'
 
 interface TransactionCardProps {
   transaction: AccountTransaction
@@ -40,6 +40,16 @@ export const TransactionCard = memo(function TransactionCard({
     })
   }
 
+  const formatCardTitle = (
+    title: string,
+    descriptionOrSplits: string | null | TransactionSplit[]
+  ) => {
+    if (Array.isArray(descriptionOrSplits)) {
+      return `${title} - ${descriptionOrSplits.map((i) => i.categoryName).join('/')}`
+    }
+    return descriptionOrSplits ? `${title} - ${descriptionOrSplits}` : title
+  }
+
   const isExpense = transaction.transactionType === 'EXPENSE'
 
   return (
@@ -47,7 +57,14 @@ export const TransactionCard = memo(function TransactionCard({
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="font-medium text-gray-900">{transaction.description}</h3>
+            <h3 className="font-medium text-gray-900">
+              {formatCardTitle(
+                transaction.vendorName,
+                transaction.splits.length > 1
+                  ? transaction.splits
+                  : transaction.description
+              )}
+            </h3>
             <span
               className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                 transactionTypeColors[transaction.transactionType]
@@ -56,7 +73,9 @@ export const TransactionCard = memo(function TransactionCard({
               {transactionTypeLabels[transaction.transactionType]}
             </span>
           </div>
-          <p className="mt-1 text-sm text-gray-500">{formatDate(transaction.date)}</p>
+          <p className="mt-1 text-sm text-gray-500">
+            {formatDate(transaction.date)}
+          </p>
 
           {transaction.splits.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1">
