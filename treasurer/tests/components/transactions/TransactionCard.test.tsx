@@ -10,6 +10,8 @@ const mockTransaction: AccountTransaction = {
   transactionType: 'EXPENSE',
   date: '2024-01-15T10:00:00.000Z',
   feeAmount: null,
+  vendorId: null,
+  vendorName: null,
   accountId: '123e4567-e89b-12d3-a456-426614174001',
   createdAt: '2024-01-15T10:00:00.000Z',
   updatedAt: '2024-01-15T10:00:00.000Z',
@@ -60,11 +62,19 @@ describe('TransactionCard', () => {
   })
 
   it('renders different transaction types correctly', () => {
-    const incomeTransaction = { ...mockTransaction, transactionType: 'INCOME' as const }
-    const { rerender } = render(<TransactionCard transaction={incomeTransaction} />)
+    const incomeTransaction = {
+      ...mockTransaction,
+      transactionType: 'INCOME' as const,
+    }
+    const { rerender } = render(
+      <TransactionCard transaction={incomeTransaction} />
+    )
     expect(screen.getByText('Income')).toBeInTheDocument()
 
-    const transferTransaction = { ...mockTransaction, transactionType: 'TRANSFER' as const }
+    const transferTransaction = {
+      ...mockTransaction,
+      transactionType: 'TRANSFER' as const,
+    }
     rerender(<TransactionCard transaction={transferTransaction} />)
     expect(screen.getByText('Transfer')).toBeInTheDocument()
   })

@@ -41,13 +41,16 @@ export const TransactionCard = memo(function TransactionCard({
   }
 
   const formatCardTitle = (
-    title: string,
+    title: string | null,
     descriptionOrSplits: string | null | TransactionSplit[]
   ) => {
+    const baseTitle = title || 'Transaction'
     if (Array.isArray(descriptionOrSplits)) {
-      return `${title} - ${descriptionOrSplits.map((i) => i.categoryName).join('/')}`
+      return `${baseTitle} - ${descriptionOrSplits.map((i) => i.categoryName).join('/')}`
     }
-    return descriptionOrSplits ? `${title} - ${descriptionOrSplits}` : title
+    return descriptionOrSplits
+      ? `${baseTitle} - ${descriptionOrSplits}`
+      : baseTitle
   }
 
   const isExpense = transaction.transactionType === 'EXPENSE'

@@ -52,8 +52,9 @@ function formatTransactionValue(
   if (Array.isArray(value)) {
     // Format splits
     return value
-      .map((split: { amount: string; categoryName: string }) =>
-        `${split.categoryName}: $${parseFloat(split.amount).toFixed(2)}`
+      .map(
+        (split: { amount: string; categoryName: string }) =>
+          `${split.categoryName}: $${parseFloat(split.amount).toFixed(2)}`
       )
       .join(', ')
   }
@@ -126,9 +127,12 @@ export function ConflictResolutionDialog({
       {
         label: 'Description',
         field: 'description',
-        yourValue: formData.description,
-        serverValue: serverData.description,
-        isDifferent: valuesAreDifferent(formData.description, serverData.description),
+        yourValue: formData.description || '-',
+        serverValue: serverData.description || '-',
+        isDifferent: valuesAreDifferent(
+          formData.description,
+          serverData.description
+        ),
       },
       {
         label: 'Amount',
@@ -142,7 +146,10 @@ export function ConflictResolutionDialog({
         field: 'transactionType',
         yourValue: formData.transactionType,
         serverValue: serverData.transactionType,
-        isDifferent: valuesAreDifferent(formData.transactionType, serverData.transactionType),
+        isDifferent: valuesAreDifferent(
+          formData.transactionType,
+          serverData.transactionType
+        ),
       },
       {
         label: 'Date',
@@ -164,12 +171,20 @@ export function ConflictResolutionDialog({
       {
         label: 'Categories',
         field: 'splits',
-        yourValue: formData.splits
-          .map((s) => `${s.categoryName}: $${parseFloat(s.amount).toFixed(2)}`)
-          .join(', ') || '-',
+        yourValue:
+          formData.splits
+            .map(
+              (s) => `${s.categoryName}: $${parseFloat(s.amount).toFixed(2)}`
+            )
+            .join(', ') || '-',
         serverValue: formatTransactionValue('splits', serverData.splits),
         isDifferent: valuesAreDifferent(
-          JSON.stringify(formData.splits.map((s) => ({ amount: s.amount, categoryName: s.categoryName }))),
+          JSON.stringify(
+            formData.splits.map((s) => ({
+              amount: s.amount,
+              categoryName: s.categoryName,
+            }))
+          ),
           JSON.stringify(serverData.splits)
         ),
       },
@@ -243,7 +258,7 @@ export function ConflictResolutionDialog({
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-60 bg-black bg-opacity-60"
+        className="z-60 fixed inset-0 bg-black bg-opacity-60"
         aria-hidden="true"
       />
 
@@ -253,7 +268,7 @@ export function ConflictResolutionDialog({
         aria-modal="true"
         aria-labelledby="conflict-dialog-title"
         aria-describedby="conflict-dialog-description"
-        className="fixed inset-0 z-70 flex items-center justify-center p-4"
+        className="z-70 fixed inset-0 flex items-center justify-center p-4"
       >
         <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-lg bg-white shadow-2xl">
           {/* Header */}

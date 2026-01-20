@@ -75,6 +75,8 @@ const mockTransaction: TransactionWithStatus = {
   description: 'Test transaction',
   date: '2026-01-15',
   feeAmount: null,
+  vendorId: null,
+  vendorName: null,
   splits: [],
   status: 'UNCLEARED',
   createdAt: '2026-01-15T10:00:00Z',

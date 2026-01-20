@@ -234,7 +234,7 @@ export interface EditHistoryChange {
  */
 export interface TransactionEditFormData {
   /** Transaction description */
-  description: string
+  description: string | null
   /** Transaction amount (as string for form input) */
   amount: string
   /** Transaction type */

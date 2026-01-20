@@ -94,6 +94,8 @@ export function createMockTransaction(overrides = {}) {
     description: 'Test transaction',
     date: '2026-01-15',
     feeAmount: null,
+    vendorId: null,
+    vendorName: null,
     splits: [],
     createdAt: '2026-01-15T10:00:00Z',
     updatedAt: '2026-01-15T10:00:00Z',
