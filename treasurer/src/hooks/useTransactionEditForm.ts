@@ -325,7 +325,7 @@ export function useTransactionEditForm({
         accountId,
         transactionId: editingTransaction.id,
         data: {
-          description: formData.description,
+          description: formData.description ?? undefined,
           amount: parseFloat(formData.amount),
           transactionType: formData.transactionType,
           date: formData.date
@@ -360,7 +360,7 @@ export function useTransactionEditForm({
         data: {
           version: versionToUse,
           force: true,
-          description: formData.description,
+          description: formData.description ?? undefined,
           amount: parseFloat(formData.amount),
           transactionType: formData.transactionType,
           date: formData.date

@@ -197,11 +197,13 @@ export function TransactionEditForm({
         <div>
           <Label htmlFor="edit-description">
             Description{' '}
-            <span className="text-sm font-normal text-gray-500">(optional)</span>
+            <span className="text-sm font-normal text-gray-500">
+              (optional)
+            </span>
           </Label>
           <Input
             id="edit-description"
-            value={formData.description}
+            value={formData.description ?? ''}
             onChange={(e) => updateDescription(e.target.value)}
             placeholder="e.g., Spring Gala Tickets"
             disabled={isSaving}
@@ -285,7 +287,7 @@ export function TransactionEditForm({
             checked={formData.applyFee}
             onChange={(e) => updateApplyFee(e.target.checked)}
             disabled={isSaving}
-            className="h-4 w-4 min-h-[44px] min-w-[44px] cursor-pointer rounded border-gray-300 text-blue-600 focus:ring-blue-500 sm:h-4 sm:w-4 sm:min-h-0 sm:min-w-0"
+            className="h-4 min-h-[44px] w-4 min-w-[44px] cursor-pointer rounded border-gray-300 text-blue-600 focus:ring-blue-500 sm:h-4 sm:min-h-0 sm:w-4 sm:min-w-0"
           />
           <Label htmlFor="edit-applyFee" className="!mt-0 cursor-pointer">
             Apply transaction fee ($

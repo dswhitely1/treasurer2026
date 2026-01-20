@@ -203,7 +203,7 @@ export function ConflictResolutionDialog({
         accountId,
         transactionId: editingTransaction.id,
         data: {
-          description: formData.description,
+          description: formData.description ?? undefined,
           amount: parseFloat(formData.amount),
           transactionType: formData.transactionType,
           date: formData.date
