@@ -1,66 +1,92 @@
-import { Router, type Router as RouterType } from 'express'
-import { authenticate } from '../middleware/auth.js'
-import { requireOrgMembership, requireOrgRole } from '../middleware/organization.js'
-import { validate } from '../middleware/validate.js'
-import { preventReconciledModification } from '../middleware/transactionProtection.js'
+import { Router, type Router as RouterType } from "express";
+import { authenticate } from "../middleware/auth.js";
+import {
+  requireOrgMembership,
+  requireOrgRole,
+} from "../middleware/organization.js";
+import { validate } from "../middleware/validate.js";
+import { preventReconciledModification } from "../middleware/transactionProtection.js";
 import {
   createTransactionSchema,
   updateTransactionSchema,
   transactionIdParamSchema,
   accountTransactionParamSchema,
   transactionQuerySchema,
-} from '../schemas/transaction.js'
-import { create, list, get, update, remove, getEditHistory } from '../controllers/transactionController.js'
+} from "../schemas/transaction.js";
+import { exportQuerySchema } from "../schemas/export.js";
+import {
+  create,
+  list,
+  get,
+  update,
+  remove,
+  getEditHistory,
+} from "../controllers/transactionController.js";
+import { exportTransactions } from "../controllers/exportController.js";
 
-const router: RouterType = Router({ mergeParams: true })
+const router: RouterType = Router({ mergeParams: true });
 
 // All routes require authentication
-router.use(authenticate)
+router.use(authenticate);
+
+// Export transactions to Excel - GET /organizations/:orgId/accounts/:accountId/transactions/export
+router.get(
+  "/export",
+  validate({ params: accountTransactionParamSchema, query: exportQuerySchema }),
+  requireOrgMembership(),
+  exportTransactions,
+);
 
 // Transaction CRUD - nested under /organizations/:orgId/accounts/:accountId/transactions
 router.post(
-  '/',
-  validate({ params: accountTransactionParamSchema, body: createTransactionSchema }),
-  requireOrgRole('OWNER', 'ADMIN'),
-  create
-)
+  "/",
+  validate({
+    params: accountTransactionParamSchema,
+    body: createTransactionSchema,
+  }),
+  requireOrgRole("OWNER", "ADMIN"),
+  create,
+);
 
 router.get(
-  '/',
-  validate({ params: accountTransactionParamSchema, query: transactionQuerySchema }),
+  "/",
+  validate({
+    params: accountTransactionParamSchema,
+    query: transactionQuerySchema,
+  }),
   requireOrgMembership(),
-  list
-)
+  list,
+);
 
 router.get(
-  '/:transactionId',
+  "/:transactionId",
   validate({ params: transactionIdParamSchema }),
   requireOrgMembership(),
-  get
-)
+  get,
+);
 
 router.patch(
-  '/:transactionId',
+  "/:transactionId",
   validate({ params: transactionIdParamSchema, body: updateTransactionSchema }),
-  requireOrgRole('OWNER', 'ADMIN'),
+  requireOrgRole("OWNER", "ADMIN"),
   preventReconciledModification(),
-  update
-)
+  update,
+);
 
 router.delete(
-  '/:transactionId',
+  "/:transactionId",
   validate({ params: transactionIdParamSchema }),
-  requireOrgRole('OWNER', 'ADMIN'),
+  requireOrgRole("OWNER", "ADMIN"),
   preventReconciledModification(),
-  remove
-)
+  remove,
+);
 
 // Transaction edit history - GET /organizations/:orgId/accounts/:accountId/transactions/:transactionId/history
 router.get(
-  '/:transactionId/history',
+  "/:transactionId/history",
   validate({ params: transactionIdParamSchema }),
   requireOrgMembership(),
-  getEditHistory
-)
+  getEditHistory,
+);
 
-export default router
+export default router;

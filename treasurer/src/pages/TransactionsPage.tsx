@@ -24,6 +24,7 @@ import {
   TransactionEditModal,
   type CreateTransactionData,
 } from '@/components/transactions'
+import { ExportTransactionsPanel } from '@/components/export'
 import {
   StatusFilterControls,
   TransactionBulkActions,
@@ -400,6 +401,17 @@ export function TransactionsPage() {
           )}
         </div>
       </div>
+
+      {/* Export Panel */}
+      {account && (
+        <div className="mb-8">
+          <ExportTransactionsPanel
+            orgId={orgId!}
+            accountId={accountId!}
+            accountName={account.name}
+          />
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="mb-8 grid gap-6 md:grid-cols-3">
