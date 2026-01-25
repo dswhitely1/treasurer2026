@@ -61,7 +61,9 @@ jobs:
         working-directory: treasurer-api
         env:
           DATABASE_URL: postgresql://treasurer:treasurer_password@localhost:5432/treasurer_test
-        run: pnpm prisma migrate deploy
+        run: |
+          pnpm prisma generate
+          pnpm prisma migrate deploy
 
       - name: Build API
         working-directory: treasurer-api
@@ -116,4 +118,4 @@ jobs:
         if: github.event_name == 'pull_request' && always()
         uses: daun/playwright-report-comment@v3
         with:
-          report-path: treasurer/playwright-report
+          report-file: treasurer/playwright-report/results.json
