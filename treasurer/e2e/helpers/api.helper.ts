@@ -342,7 +342,7 @@ export async function setupTestData(): Promise<TestDataContext> {
   const txn1 = await createTransaction(token, organization.id, account.id, {
     description: 'Grocery shopping',
     amount: 125.5,
-    date: '2026-01-15',
+    date: '2026-01-15T00:00:00.000Z',
     transactionType: 'EXPENSE',
     splits: [{ amount: 125.5, categoryName: 'Groceries' }],
   })
@@ -352,7 +352,7 @@ export async function setupTestData(): Promise<TestDataContext> {
   const txn2 = await createTransaction(token, organization.id, account.id, {
     description: 'Monthly salary',
     amount: 5000.0,
-    date: '2026-01-01',
+    date: '2026-01-01T00:00:00.000Z',
     transactionType: 'INCOME',
     splits: [{ amount: 5000.0, categoryName: 'Salary' }],
   })
@@ -371,7 +371,7 @@ export async function setupTestData(): Promise<TestDataContext> {
   const txn3 = await createTransaction(token, organization.id, account.id, {
     description: 'Split expense - Restaurant and Entertainment',
     amount: 200.0,
-    date: '2026-01-10',
+    date: '2026-01-10T00:00:00.000Z',
     transactionType: 'EXPENSE',
     splits: [
       { amount: 120.0, categoryName: 'Dining Out' },
@@ -384,7 +384,7 @@ export async function setupTestData(): Promise<TestDataContext> {
   const txn4 = await createTransaction(token, organization.id, account.id, {
     description: 'Reconciled transaction - should not be editable',
     amount: 50.0,
-    date: '2026-01-05',
+    date: '2026-01-05T00:00:00.000Z',
     transactionType: 'EXPENSE',
     splits: [{ amount: 50.0, categoryName: 'Utilities' }],
   })
