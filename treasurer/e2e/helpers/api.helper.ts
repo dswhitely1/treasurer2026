@@ -210,7 +210,7 @@ export async function createAccount(
     currency: accountData?.currency || 'USD',
   }
 
-  const response = await apiRequest<Account>(
+  const response = await apiRequest<{ account: Account }>(
     `/organizations/${orgId}/accounts`,
     {
       method: 'POST',
@@ -219,11 +219,11 @@ export async function createAccount(
     }
   )
 
-  if (!response.data) {
+  if (!response.data?.account) {
     throw new Error('Account creation failed: no data returned')
   }
 
-  return response.data
+  return response.data.account
 }
 
 /**
@@ -234,7 +234,7 @@ export async function createCategory(
   orgId: string,
   categoryData: { name: string; type: 'INCOME' | 'EXPENSE' }
 ): Promise<Category> {
-  const response = await apiRequest<Category>(
+  const response = await apiRequest<{ category: Category }>(
     `/organizations/${orgId}/categories`,
     {
       method: 'POST',
@@ -243,11 +243,11 @@ export async function createCategory(
     }
   )
 
-  if (!response.data) {
+  if (!response.data?.category) {
     throw new Error('Category creation failed: no data returned')
   }
 
-  return response.data
+  return response.data.category
 }
 
 /**
@@ -265,7 +265,7 @@ export async function createTransaction(
     splits: Array<{ amount: number; categoryName: string; memo?: string }>
   }
 ): Promise<Transaction> {
-  const response = await apiRequest<Transaction>(
+  const response = await apiRequest<{ transaction: Transaction }>(
     `/organizations/${orgId}/accounts/${accountId}/transactions`,
     {
       method: 'POST',
@@ -274,15 +274,40 @@ export async function createTransaction(
     }
   )
 
-  if (!response.data) {
+  if (!response.data?.transaction) {
     throw new Error('Transaction creation failed: no data returned')
   }
 
-  return response.data
+  return response.data.transaction
+}
+
+/**
+ * Get a transaction by ID.
+ */
+export async function getTransaction(
+  token: string,
+  orgId: string,
+  accountId: string,
+  transactionId: string
+): Promise<Transaction> {
+  const response = await apiRequest<{ transaction: Transaction }>(
+    `/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}`,
+    {
+      method: 'GET',
+      token,
+    }
+  )
+
+  if (!response.data?.transaction) {
+    throw new Error('Transaction not found')
+  }
+
+  return response.data.transaction
 }
 
 /**
  * Update transaction status.
+ * Note: Status API returns history, so we fetch the transaction afterward to get updated data.
  */
 export async function updateTransactionStatus(
   token: string,
@@ -292,7 +317,8 @@ export async function updateTransactionStatus(
   status: 'UNCLEARED' | 'CLEARED' | 'RECONCILED',
   version: number
 ): Promise<Transaction> {
-  const response = await apiRequest<Transaction>(
+  // Call the status change API
+  await apiRequest<{ history: unknown }>(
     `/organizations/${orgId}/accounts/${accountId}/transactions/${transactionId}/status`,
     {
       method: 'PATCH',
@@ -301,11 +327,8 @@ export async function updateTransactionStatus(
     }
   )
 
-  if (!response.data) {
-    throw new Error('Status update failed: no data returned')
-  }
-
-  return response.data
+  // Fetch the updated transaction to get new version
+  return getTransaction(token, orgId, accountId, transactionId)
 }
 
 /**
