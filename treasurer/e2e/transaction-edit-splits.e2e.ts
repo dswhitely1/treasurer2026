@@ -1,5 +1,13 @@
-import { test, expect } from './fixtures/auth.fixture'
-import { SAMPLE_TRANSACTIONS, SAMPLE_CATEGORIES } from './fixtures/transaction.fixture'
+import {
+  test,
+  expect,
+  getTransaction,
+  getCategory,
+} from './fixtures/auth.fixture'
+import {
+  TRANSACTION_INDEX,
+  CATEGORY_NAMES,
+} from './fixtures/transaction.fixture'
 import {
   TransactionEditPage,
   verifyTransactionInList,
@@ -21,7 +29,10 @@ test.describe('Transaction Edit - Split Editing', () => {
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[2] // Split expense transaction
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.SPLIT_EXPENSE
+    )
 
     // Open edit modal
     await editPage.openEditModal(transaction.id)
@@ -30,12 +41,14 @@ test.describe('Transaction Edit - Split Editing', () => {
     await expect(editPage.splitsSection).toBeVisible()
 
     // Verify all splits are displayed
-    const splitRows = editPage.splitsSection.locator('[data-testid^="split-row-"]')
+    const splitRows = editPage.splitsSection.locator(
+      '[data-testid^="split-row-"]'
+    )
     await expect(splitRows).toHaveCount(transaction.splits?.length || 0)
 
     // Verify split details
     for (let i = 0; i < (transaction.splits?.length || 0); i++) {
-      const split = transaction.splits![i]
+      const split = transaction.splits[i]
       const splitRow = splitRows.nth(i)
 
       // Check category
@@ -48,19 +61,30 @@ test.describe('Transaction Edit - Split Editing', () => {
     }
   })
 
-  test('should add a new split to transaction', async ({ page, testContext }) => {
+  test('should add a new split to transaction', async ({
+    page,
+    testContext,
+  }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0] // Single split transaction
-    const newCategory = SAMPLE_CATEGORIES.find((c) => c.name === 'Transportation')!
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
+    const newCategory = getCategory(
+      testContext.testData,
+      CATEGORY_NAMES.UTILITIES
+    )
 
     // Open edit modal
     await editPage.openEditModal(transaction.id)
 
     // Add new split
-    await editPage.addSplit(newCategory.name, '25.00', 'Gas expense')
+    await editPage.addSplit(newCategory.name, '25.00', 'Additional expense')
 
     // Verify split was added
-    const splitRows = editPage.splitsSection.locator('[data-testid^="split-row-"]')
+    const splitRows = editPage.splitsSection.locator(
+      '[data-testid^="split-row-"]'
+    )
     await expect(splitRows).toHaveCount(2)
 
     // Update original split amount to maintain total
@@ -76,9 +100,15 @@ test.describe('Transaction Edit - Split Editing', () => {
     })
   })
 
-  test('should remove a split from transaction', async ({ page, testContext }) => {
+  test('should remove a split from transaction', async ({
+    page,
+    testContext,
+  }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[2] // Multi-split transaction
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.SPLIT_EXPENSE
+    )
 
     // Open edit modal
     await editPage.openEditModal(transaction.id)
@@ -108,8 +138,11 @@ test.describe('Transaction Edit - Split Editing', () => {
 
   test('should modify split category', async ({ page, testContext }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
-    const newCategory = SAMPLE_CATEGORIES.find((c) => c.name === 'Dining Out')!
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
+    const newCategory = getCategory(testContext.testData, CATEGORY_NAMES.DINING)
 
     // Open edit modal
     await editPage.openEditModal(transaction.id)
@@ -135,7 +168,10 @@ test.describe('Transaction Edit - Split Editing', () => {
 
   test('should modify split amount', async ({ page, testContext }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[2] // Multi-split transaction
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.SPLIT_EXPENSE
+    )
     const newAmounts = ['130.00', '70.00']
 
     // Open edit modal
@@ -152,7 +188,9 @@ test.describe('Transaction Edit - Split Editing', () => {
     // Re-open and verify amounts changed
     await editPage.openEditModal(transaction.id)
 
-    const splitRows = editPage.splitsSection.locator('[data-testid^="split-row-"]')
+    const splitRows = editPage.splitsSection.locator(
+      '[data-testid^="split-row-"]'
+    )
     for (let i = 0; i < newAmounts.length; i++) {
       const amountInput = splitRows.nth(i).getByLabel(/amount/i)
       await expect(amountInput).toHaveValue(newAmounts[i])
@@ -166,7 +204,10 @@ test.describe('Transaction Edit - Split Editing', () => {
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[2]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.SPLIT_EXPENSE
+    )
 
     // Open edit modal
     await editPage.openEditModal(transaction.id)
@@ -199,13 +240,18 @@ test.describe('Transaction Edit - Split Editing', () => {
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[2]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.SPLIT_EXPENSE
+    )
 
     // Open edit modal
     await editPage.openEditModal(transaction.id)
 
     // Verify split total is displayed
-    const splitTotal = editPage.splitsSection.locator('[data-testid="split-total"]')
+    const splitTotal = editPage.splitsSection.locator(
+      '[data-testid="split-total"]'
+    )
     await expect(splitTotal).toBeVisible()
     await expect(splitTotal).toContainText(transaction.amount)
 
@@ -213,7 +259,9 @@ test.describe('Transaction Edit - Split Editing', () => {
     await editPage.updateSplit(0, { amount: '90.00' })
 
     // Verify remaining amount updates
-    const remaining = editPage.splitsSection.locator('[data-testid="split-remaining"]')
+    const remaining = editPage.splitsSection.locator(
+      '[data-testid="split-remaining"]'
+    )
     await expect(remaining).toBeVisible()
     await expect(remaining).toContainText('110.00') // 200 - 90
   })
@@ -223,8 +271,14 @@ test.describe('Transaction Edit - Split Editing', () => {
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0] // Single split
-    const categories = [SAMPLE_CATEGORIES[2], SAMPLE_CATEGORIES[3]] // Dining, Entertainment
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
+    const categories = [
+      getCategory(testContext.testData, CATEGORY_NAMES.DINING),
+      getCategory(testContext.testData, CATEGORY_NAMES.ENTERTAINMENT),
+    ]
 
     // Open edit modal
     await editPage.openEditModal(transaction.id)
@@ -250,7 +304,9 @@ test.describe('Transaction Edit - Split Editing', () => {
     // Re-open and verify splits
     await editPage.openEditModal(transaction.id)
 
-    const splitRows = editPage.splitsSection.locator('[data-testid^="split-row-"]')
+    const splitRows = editPage.splitsSection.locator(
+      '[data-testid^="split-row-"]'
+    )
     await expect(splitRows).toHaveCount(2)
 
     await editPage.close()
@@ -261,7 +317,10 @@ test.describe('Transaction Edit - Split Editing', () => {
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[2] // Multi-split
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.SPLIT_EXPENSE
+    )
 
     // Open edit modal
     await editPage.openEditModal(transaction.id)
@@ -286,21 +345,29 @@ test.describe('Transaction Edit - Split Editing', () => {
     // Re-open and verify single split
     await editPage.openEditModal(transaction.id)
 
-    const splitRows = editPage.splitsSection.locator('[data-testid^="split-row-"]')
+    const splitRows = editPage.splitsSection.locator(
+      '[data-testid^="split-row-"]'
+    )
     await expect(splitRows).toHaveCount(1)
 
     await editPage.close()
   })
 
-  test('should preserve split order after edit', async ({ page, testContext }) => {
+  test('should preserve split order after edit', async ({
+    page,
+    testContext,
+  }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[2]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.SPLIT_EXPENSE
+    )
 
     // Open edit modal
     await editPage.openEditModal(transaction.id)
 
     // Get original split order
-    const originalSplits = transaction.splits!.map((s) => s.categoryName)
+    const originalSplits = transaction.splits.map((s) => s.categoryName)
 
     // Modify amounts but keep order
     await editPage.updateSplit(0, { amount: '110.00' })
@@ -313,11 +380,15 @@ test.describe('Transaction Edit - Split Editing', () => {
     // Re-open and verify order preserved
     await editPage.openEditModal(transaction.id)
 
-    const splitRows = editPage.splitsSection.locator('[data-testid^="split-row-"]')
+    const splitRows = editPage.splitsSection.locator(
+      '[data-testid^="split-row-"]'
+    )
     for (let i = 0; i < originalSplits.length; i++) {
       const categorySelect = splitRows.nth(i).getByLabel(/category/i)
       const selectedOption = await categorySelect.inputValue()
-      const category = SAMPLE_CATEGORIES.find((c) => c.id === selectedOption)
+      const category = testContext.testData.categories.find(
+        (c) => c.id === selectedOption
+      )
       expect(category?.name).toBe(originalSplits[i])
     }
 

@@ -1,7 +1,6 @@
-import { test, expect, devices } from '@playwright/test'
-import { SAMPLE_TRANSACTIONS } from './fixtures/transaction.fixture'
+import { test, expect, getTransaction } from './fixtures/auth.fixture'
+import { TRANSACTION_INDEX } from './fixtures/transaction.fixture'
 import { TransactionEditPage } from './helpers/transaction-edit.helper'
-import { test as authTest } from './fixtures/auth.fixture'
 
 /**
  * E2E Tests: Transaction Edit - UX Features
@@ -11,9 +10,12 @@ import { test as authTest } from './fixtures/auth.fixture'
  */
 
 test.describe('Transaction Edit - Keyboard Navigation & Accessibility', () => {
-  authTest('should close modal with Escape key', async ({ page, testContext }) => {
+  test('should close modal with Escape key', async ({ page, testContext }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     await editPage.openEditModal(transaction.id)
 
@@ -24,12 +26,15 @@ test.describe('Transaction Edit - Keyboard Navigation & Accessibility', () => {
     await editPage.waitForClose()
   })
 
-  authTest('should save with Cmd/Ctrl+S keyboard shortcut', async ({
+  test('should save with Cmd/Ctrl+S keyboard shortcut', async ({
     page,
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     await editPage.openEditModal(transaction.id)
 
@@ -43,12 +48,15 @@ test.describe('Transaction Edit - Keyboard Navigation & Accessibility', () => {
     await editPage.waitForSaveSuccess()
   })
 
-  authTest('should support tab navigation through form fields', async ({
+  test('should support tab navigation through form fields', async ({
     page,
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     await editPage.openEditModal(transaction.id)
 
@@ -74,7 +82,11 @@ test.describe('Transaction Edit - Keyboard Navigation & Accessibility', () => {
     // Eventually reach Save button
     for (let i = 0; i < 5; i++) {
       await page.keyboard.press('Tab')
-      if (await editPage.saveButton.evaluate((el) => el === document.activeElement)) {
+      if (
+        await editPage.saveButton.evaluate(
+          (el) => el === document.activeElement
+        )
+      ) {
         break
       }
     }
@@ -82,18 +94,20 @@ test.describe('Transaction Edit - Keyboard Navigation & Accessibility', () => {
     await expect(editPage.saveButton).toBeFocused()
   })
 
-  authTest('should trap focus within modal', async ({ page, testContext }) => {
+  test('should trap focus within modal', async ({ page, testContext }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     await editPage.openEditModal(transaction.id)
 
     // Get all focusable elements in modal
-    const focusableElements = await editPage.modal.locator(
+    const focusableElements = editPage.modal.locator(
       'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
     )
 
-    const firstElement = focusableElements.first()
     const lastElement = focusableElements.last()
 
     // Focus last element
@@ -101,8 +115,6 @@ test.describe('Transaction Edit - Keyboard Navigation & Accessibility', () => {
 
     // Tab forward should cycle to first element
     await page.keyboard.press('Tab')
-
-    const activeElement = await page.evaluate(() => document.activeElement?.tagName)
 
     // Should have cycled back to an element within the modal
     const isWithinModal = await page.evaluate(() => {
@@ -114,9 +126,12 @@ test.describe('Transaction Edit - Keyboard Navigation & Accessibility', () => {
     expect(isWithinModal).toBe(true)
   })
 
-  authTest('should have proper ARIA attributes', async ({ page, testContext }) => {
+  test('should have proper ARIA attributes', async ({ page, testContext }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     await editPage.openEditModal(transaction.id)
 
@@ -146,12 +161,15 @@ test.describe('Transaction Edit - Keyboard Navigation & Accessibility', () => {
     await expect(memoLabel).toBeVisible()
   })
 
-  authTest('should announce validation errors to screen readers', async ({
+  test('should announce validation errors to screen readers', async ({
     page,
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     await editPage.openEditModal(transaction.id)
 
@@ -166,18 +184,21 @@ test.describe('Transaction Edit - Keyboard Navigation & Accessibility', () => {
       const role = await errorElement.getAttribute('role')
       const ariaLive = await errorElement.getAttribute('aria-live')
 
-      expect(role === 'alert' || ariaLive === 'polite' || ariaLive === 'assertive').toBe(
-        true
-      )
+      expect(
+        role === 'alert' || ariaLive === 'polite' || ariaLive === 'assertive'
+      ).toBe(true)
     }
   })
 
-  authTest('should meet minimum touch target size on mobile', async ({
+  test('should meet minimum touch target size on mobile', async ({
     page,
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     await editPage.openEditModal(transaction.id)
 
@@ -194,7 +215,7 @@ test.describe('Transaction Edit - Keyboard Navigation & Accessibility', () => {
 })
 
 test.describe('Transaction Edit - Responsive Design', () => {
-  authTest('should display full-screen modal on mobile', async ({
+  test('should display full-screen modal on mobile', async ({
     page,
     testContext,
   }) => {
@@ -202,7 +223,10 @@ test.describe('Transaction Edit - Responsive Design', () => {
     await page.setViewportSize({ width: 375, height: 667 }) // iPhone SE
 
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     await editPage.openEditModal(transaction.id)
 
@@ -217,7 +241,7 @@ test.describe('Transaction Edit - Responsive Design', () => {
     expect(modalBox?.x).toBeLessThanOrEqual(20) // Allow some padding
   })
 
-  authTest('should display centered modal on desktop', async ({
+  test('should display centered modal on desktop', async ({
     page,
     testContext,
   }) => {
@@ -225,7 +249,10 @@ test.describe('Transaction Edit - Responsive Design', () => {
     await page.setViewportSize({ width: 1920, height: 1080 })
 
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     await editPage.openEditModal(transaction.id)
 
@@ -242,7 +269,7 @@ test.describe('Transaction Edit - Responsive Design', () => {
     expect(Math.abs(centerX - viewportCenterX)).toBeLessThan(100)
   })
 
-  authTest('should adapt layout on tablet viewport', async ({
+  test('should adapt layout on tablet viewport', async ({
     page,
     testContext,
   }) => {
@@ -250,7 +277,10 @@ test.describe('Transaction Edit - Responsive Design', () => {
     await page.setViewportSize({ width: 768, height: 1024 }) // iPad
 
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     await editPage.openEditModal(transaction.id)
 
@@ -268,12 +298,15 @@ test.describe('Transaction Edit - Responsive Design', () => {
 })
 
 test.describe('Transaction Edit - Error Handling', () => {
-  authTest('should handle network error during save', async ({
+  test('should handle network error during save', async ({
     page,
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     await editPage.openEditModal(transaction.id)
 
@@ -301,27 +334,33 @@ test.describe('Transaction Edit - Error Handling', () => {
     await editPage.waitForSaveSuccess()
   })
 
-  authTest('should handle API error response', async ({ page, testContext }) => {
+  test('should handle API error response', async ({ page, testContext }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     await editPage.openEditModal(transaction.id)
 
     // Mock API to return error
-    await page.route('**/api/organizations/*/accounts/*/transactions/*', (route) => {
-      if (route.request().method() === 'PATCH') {
-        route.fulfill({
-          status: 400,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            error: 'Invalid transaction data',
-            details: 'Amount exceeds account limit',
-          }),
-        })
-      } else {
-        route.continue()
+    await page.route(
+      '**/api/organizations/*/accounts/*/transactions/*',
+      (route) => {
+        if (route.request().method() === 'PATCH') {
+          void route.fulfill({
+            status: 400,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              error: 'Invalid transaction data',
+              details: 'Amount exceeds account limit',
+            }),
+          })
+        } else {
+          void route.continue()
+        }
       }
-    })
+    )
 
     // Try to save
     await editPage.fillTransactionForm({ amount: '999999.99' })
@@ -340,23 +379,29 @@ test.describe('Transaction Edit - Error Handling', () => {
     await expect(editPage.modal).toBeVisible()
   })
 
-  authTest('should handle timeout during save', async ({ page, testContext }) => {
+  test('should handle timeout during save', async ({ page, testContext }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     await editPage.openEditModal(transaction.id)
 
     // Mock slow API response
-    await page.route('**/api/organizations/*/accounts/*/transactions/*', (route) => {
-      if (route.request().method() === 'PATCH') {
-        // Delay response beyond timeout
-        setTimeout(() => {
-          route.fulfill({ status: 200, body: JSON.stringify({}) })
-        }, 35000) // Longer than typical timeout
-      } else {
-        route.continue()
+    await page.route(
+      '**/api/organizations/*/accounts/*/transactions/*',
+      (route) => {
+        if (route.request().method() === 'PATCH') {
+          // Delay response beyond timeout
+          setTimeout(() => {
+            void route.fulfill({ status: 200, body: JSON.stringify({}) })
+          }, 35000) // Longer than typical timeout
+        } else {
+          void route.continue()
+        }
       }
-    })
+    )
 
     // Try to save
     await editPage.fillTransactionForm({ memo: 'Slow save' })
@@ -371,11 +416,14 @@ test.describe('Transaction Edit - Error Handling', () => {
 })
 
 test.describe('Transaction Edit - URL State Management', () => {
-  authTest('should open modal from direct URL with edit param', async ({
+  test('should open modal from direct URL with edit param', async ({
     page,
     testContext,
   }) => {
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     // Navigate directly to URL with edit param
     await page.goto(
@@ -388,12 +436,18 @@ test.describe('Transaction Edit - URL State Management', () => {
     await expect(editPage.modal).toBeVisible({ timeout: 5000 })
 
     // Form should be pre-filled
-    await expect(editPage.memoInput).toHaveValue(transaction.memo)
+    await expect(editPage.memoInput).toHaveValue(transaction.description)
   })
 
-  authTest('should update URL when opening modal', async ({ page, testContext }) => {
+  test('should update URL when opening modal', async ({
+    page,
+    testContext,
+  }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     // Open edit modal via button click
     await editPage.openEditModal(transaction.id)
@@ -402,12 +456,15 @@ test.describe('Transaction Edit - URL State Management', () => {
     await expect(page).toHaveURL(new RegExp(`edit=${transaction.id}`))
   })
 
-  authTest('should remove URL param when closing modal', async ({
+  test('should remove URL param when closing modal', async ({
     page,
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     // Open modal
     await editPage.openEditModal(transaction.id)
@@ -420,12 +477,15 @@ test.describe('Transaction Edit - URL State Management', () => {
     await expect(page).not.toHaveURL(/edit=/)
   })
 
-  authTest('should handle browser back button to close modal', async ({
+  test('should handle browser back button to close modal', async ({
     page,
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     // Record initial URL
     const initialUrl = page.url()
@@ -446,12 +506,15 @@ test.describe('Transaction Edit - URL State Management', () => {
     expect(page.url()).toBe(initialUrl)
   })
 
-  authTest('should preserve other query parameters when adding edit param', async ({
+  test('should preserve other query parameters when adding edit param', async ({
     page,
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     // Navigate with existing query params
     await page.goto(
@@ -467,7 +530,7 @@ test.describe('Transaction Edit - URL State Management', () => {
     await expect(page).toHaveURL(/edit=/)
   })
 
-  authTest('should handle invalid transaction ID in URL', async ({
+  test('should handle invalid transaction ID in URL', async ({
     page,
     testContext,
   }) => {

@@ -1,5 +1,5 @@
-import { test, expect } from './fixtures/auth.fixture'
-import { SAMPLE_TRANSACTIONS } from './fixtures/transaction.fixture'
+import { test, expect, getTransaction } from './fixtures/auth.fixture'
+import { TRANSACTION_INDEX } from './fixtures/transaction.fixture'
 import { TransactionEditPage } from './helpers/transaction-edit.helper'
 
 /**
@@ -13,9 +13,15 @@ import { TransactionEditPage } from './helpers/transaction-edit.helper'
  */
 
 test.describe('Transaction Edit - Edit History', () => {
-  test('should display edit history tab in modal', async ({ page, testContext }) => {
+  test('should display edit history tab in modal', async ({
+    page,
+    testContext,
+  }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[2] // Transaction with version > 1
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.SPLIT_EXPENSE
+    )
 
     // Open edit modal
     await editPage.openEditModal(transaction.id)
@@ -29,7 +35,10 @@ test.describe('Transaction Edit - Edit History', () => {
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[2]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.SPLIT_EXPENSE
+    )
 
     // Open edit modal
     await editPage.openEditModal(transaction.id)
@@ -42,9 +51,15 @@ test.describe('Transaction Edit - Edit History', () => {
     await expect(historyPanel).toBeVisible()
   })
 
-  test('should display all edit history entries', async ({ page, testContext }) => {
+  test('should display all edit history entries', async ({
+    page,
+    testContext,
+  }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[2] // Version 2, should have creation + 1 edit
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.SPLIT_EXPENSE
+    )
 
     // Open edit modal
     await editPage.openEditModal(transaction.id)
@@ -56,7 +71,7 @@ test.describe('Transaction Edit - Edit History', () => {
     const entries = await editPage.getEditHistoryEntries()
 
     // Should have at least the creation entry
-    await expect(entries).toHaveCount(transaction.version || 1)
+    await expect(entries).toHaveCount(transaction.version)
   })
 
   test('should display edit timestamp and user info', async ({
@@ -64,7 +79,10 @@ test.describe('Transaction Edit - Edit History', () => {
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[2]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.SPLIT_EXPENSE
+    )
 
     // Open edit modal
     await editPage.openEditModal(transaction.id)
@@ -77,13 +95,17 @@ test.describe('Transaction Edit - Edit History', () => {
     const firstEntry = entries.first()
 
     // Should display timestamp
-    await expect(firstEntry.locator('[data-testid="edit-timestamp"]')).toBeVisible()
+    await expect(
+      firstEntry.locator('[data-testid="edit-timestamp"]')
+    ).toBeVisible()
 
     // Should display user name/email
     await expect(firstEntry.locator('[data-testid="edit-user"]')).toBeVisible()
 
     // Should display edit action (e.g., "Created", "Updated")
-    await expect(firstEntry.locator('[data-testid="edit-action"]')).toBeVisible()
+    await expect(
+      firstEntry.locator('[data-testid="edit-action"]')
+    ).toBeVisible()
   })
 
   test('should expand history entry to show change details', async ({
@@ -91,7 +113,10 @@ test.describe('Transaction Edit - Edit History', () => {
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[2]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.SPLIT_EXPENSE
+    )
 
     // Open edit modal
     await editPage.openEditModal(transaction.id)
@@ -120,7 +145,10 @@ test.describe('Transaction Edit - Edit History', () => {
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     // Open edit modal
     await editPage.openEditModal(transaction.id)
@@ -164,7 +192,10 @@ test.describe('Transaction Edit - Edit History', () => {
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     // Make first edit
     await editPage.openEditModal(transaction.id)
@@ -225,7 +256,10 @@ test.describe('Transaction Edit - Edit History', () => {
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     // Open edit modal
     await editPage.openEditModal(transaction.id)
@@ -255,9 +289,15 @@ test.describe('Transaction Edit - Edit History', () => {
     }
   })
 
-  test('should collapse expanded history entry', async ({ page, testContext }) => {
+  test('should collapse expanded history entry', async ({
+    page,
+    testContext,
+  }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[2]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.SPLIT_EXPENSE
+    )
 
     // Open edit modal and history
     await editPage.openEditModal(transaction.id)
@@ -288,7 +328,10 @@ test.describe('Transaction Edit - Edit History', () => {
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[2] // Multi-split transaction
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.SPLIT_EXPENSE
+    )
 
     // Open and modify splits
     await editPage.openEditModal(transaction.id)
@@ -321,11 +364,12 @@ test.describe('Transaction Edit - Edit History', () => {
     page,
     testContext,
   }) => {
-    // This test would require creating a new transaction first
-    // For now, we'll verify that a transaction with version 1 shows only creation
-
+    // For a transaction with version 1, should show only creation
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0] // Assuming version 1
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     await editPage.openEditModal(transaction.id)
     await editPage.openEditHistory()
