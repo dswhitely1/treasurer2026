@@ -114,8 +114,11 @@ async function apiRequest<T>(
   const data = (await response.json()) as ApiResponse<T>
 
   if (!response.ok) {
+    const errorsStr = data.errors
+      ? ` Errors: ${JSON.stringify(data.errors)}`
+      : ''
     throw new Error(
-      `API Error ${response.status}: ${data.message ?? JSON.stringify(data)}`
+      `API Error ${response.status}: ${data.message ?? 'Unknown error'}${errorsStr}`
     )
   }
 
