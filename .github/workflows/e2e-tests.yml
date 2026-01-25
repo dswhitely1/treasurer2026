@@ -61,9 +61,7 @@ jobs:
         working-directory: treasurer-api
         env:
           DATABASE_URL: postgresql://treasurer:treasurer_password@localhost:5432/treasurer_test
-        run: |
-          pnpm prisma migrate deploy
-          pnpm prisma db seed
+        run: pnpm prisma migrate deploy
 
       - name: Build API
         working-directory: treasurer-api
