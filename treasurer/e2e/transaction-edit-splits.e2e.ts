@@ -44,11 +44,13 @@ test.describe('Transaction Edit - Split Editing', () => {
     const splitRows = editPage.splitsSection.locator(
       '[data-testid^="split-row-"]'
     )
-    await expect(splitRows).toHaveCount(transaction.splits?.length || 0)
+    const splits = transaction.splits ?? []
+    await expect(splitRows).toHaveCount(splits.length)
 
     // Verify split details
-    for (let i = 0; i < (transaction.splits?.length || 0); i++) {
-      const split = transaction.splits[i]
+    for (let i = 0; i < splits.length; i++) {
+      const split = splits[i]
+      if (!split) continue
       const splitRow = splitRows.nth(i)
 
       // Check category
@@ -193,7 +195,10 @@ test.describe('Transaction Edit - Split Editing', () => {
     )
     for (let i = 0; i < newAmounts.length; i++) {
       const amountInput = splitRows.nth(i).getByLabel(/amount/i)
-      await expect(amountInput).toHaveValue(newAmounts[i])
+      const expectedAmount = newAmounts[i]
+      if (expectedAmount) {
+        await expect(amountInput).toHaveValue(expectedAmount)
+      }
     }
 
     await editPage.close()
@@ -275,22 +280,26 @@ test.describe('Transaction Edit - Split Editing', () => {
       testContext.testData,
       TRANSACTION_INDEX.GROCERY
     )
-    const categories = [
-      getCategory(testContext.testData, CATEGORY_NAMES.DINING),
-      getCategory(testContext.testData, CATEGORY_NAMES.ENTERTAINMENT),
-    ]
+    const diningCategory = getCategory(
+      testContext.testData,
+      CATEGORY_NAMES.DINING
+    )
+    const entertainmentCategory = getCategory(
+      testContext.testData,
+      CATEGORY_NAMES.ENTERTAINMENT
+    )
 
     // Open edit modal
     await editPage.openEditModal(transaction.id)
 
     // Update first split
     await editPage.updateSplit(0, {
-      category: categories[0].name,
+      category: diningCategory.name,
       amount: '75.50',
     })
 
     // Add second split
-    await editPage.addSplit(categories[1].name, '50.00')
+    await editPage.addSplit(entertainmentCategory.name, '50.00')
 
     // Total should match transaction amount
     const transactionAmount = parseFloat(transaction.amount)
