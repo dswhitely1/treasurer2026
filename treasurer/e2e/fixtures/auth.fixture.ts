@@ -13,27 +13,14 @@ export interface E2ETestContext {
 
 /**
  * Authenticate user in browser by setting token in localStorage.
+ * Uses the correct key that the app expects: 'treasurer_token'
  */
-async function authenticateInBrowser(
-  page: Page,
-  token: string,
-  user: { id: string; email: string; name: string }
-): Promise<void> {
-  // Set auth state in localStorage before navigating
-  await page.addInitScript(
-    ({ token, user }) => {
-      localStorage.setItem('token', token)
-      localStorage.setItem(
-        'user',
-        JSON.stringify({
-          id: user.id,
-          email: user.email,
-          name: user.name,
-        })
-      )
-    },
-    { token, user }
-  )
+async function authenticateInBrowser(page: Page, token: string): Promise<void> {
+  // Set auth token in localStorage before navigating
+  // The app will call /auth/me to validate and load user data
+  await page.addInitScript((authToken) => {
+    localStorage.setItem('treasurer_token', authToken)
+  }, token)
 }
 
 /**
@@ -54,7 +41,7 @@ export const test = base.extend<{
     const testData = await setupTestData()
 
     // Set up browser authentication
-    await authenticateInBrowser(page, testData.token, testData.user)
+    await authenticateInBrowser(page, testData.token)
 
     // Navigate to the transactions page
     const transactionsUrl = `/org/${testData.organization.id}/accounts/${testData.account.id}/transactions`
