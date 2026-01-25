@@ -1,5 +1,5 @@
-import { test, expect } from './fixtures/auth.fixture'
-import { SAMPLE_TRANSACTIONS } from './fixtures/transaction.fixture'
+import { test, expect, getTransaction } from './fixtures/auth.fixture'
+import { TRANSACTION_INDEX } from './fixtures/transaction.fixture'
 import {
   TransactionEditPage,
   verifyTransactionInList,
@@ -16,14 +16,20 @@ import {
  */
 
 test.describe('Transaction Edit - Basic Flow', () => {
-  test.beforeEach(async ({ testContext }) => {
+  test.beforeEach(async ({ testContext: _testContext }) => {
     // Test context is already set up with authenticated user
     // and navigated to transactions page
   })
 
-  test('should open edit modal with pre-filled form', async ({ page, testContext }) => {
+  test('should open edit modal with pre-filled form', async ({
+    page,
+    testContext,
+  }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0] // Grocery shopping
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     // Open edit modal
     await editPage.openEditModal(transaction.id)
@@ -32,15 +38,17 @@ test.describe('Transaction Edit - Basic Flow', () => {
     await expect(editPage.modal).toBeVisible()
 
     // Verify modal title
-    await expect(page.getByRole('heading', { name: /edit transaction/i })).toBeVisible()
+    await expect(
+      page.getByRole('heading', { name: /edit transaction/i })
+    ).toBeVisible()
 
     // Verify form is pre-filled
-    await expect(editPage.memoInput).toHaveValue(transaction.memo)
+    await expect(editPage.memoInput).toHaveValue(transaction.description)
     await expect(editPage.amountInput).toHaveValue(transaction.amount)
     await expect(editPage.dateInput).toHaveValue(transaction.date)
 
     // Verify version info is displayed
-    if (transaction.version && transaction.version > 1) {
+    if (transaction.version > 1) {
       await expect(page.getByText(`(v${transaction.version})`)).toBeVisible()
     }
   })
@@ -50,7 +58,10 @@ test.describe('Transaction Edit - Basic Flow', () => {
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
     const newMemo = 'Updated: Whole Foods grocery shopping'
 
     // Open edit modal
@@ -80,7 +91,10 @@ test.describe('Transaction Edit - Basic Flow', () => {
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
     const newAmount = '150.75'
 
     // Open edit modal
@@ -104,7 +118,10 @@ test.describe('Transaction Edit - Basic Flow', () => {
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
     const newDate = '2026-01-20'
 
     // Open edit modal
@@ -128,7 +145,10 @@ test.describe('Transaction Edit - Basic Flow', () => {
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
     const updates = {
       memo: 'Costco bulk shopping',
       amount: '200.00',
@@ -156,8 +176,11 @@ test.describe('Transaction Edit - Basic Flow', () => {
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
-    const originalMemo = transaction.memo
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
+    const originalMemo = transaction.description
 
     // Open edit modal
     await editPage.openEditModal(transaction.id)
@@ -180,7 +203,10 @@ test.describe('Transaction Edit - Basic Flow', () => {
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
     const originalAmount = transaction.amount
 
     // Open edit modal
@@ -196,7 +222,9 @@ test.describe('Transaction Edit - Basic Flow', () => {
     await editPage.waitForClose()
 
     // Verify transaction still has original amount
-    await verifyTransactionInList(page, transaction.id, { amount: originalAmount })
+    await verifyTransactionInList(page, transaction.id, {
+      amount: originalAmount,
+    })
   })
 
   test('should display success notification after saving', async ({
@@ -204,7 +232,10 @@ test.describe('Transaction Edit - Basic Flow', () => {
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     // Open edit modal
     await editPage.openEditModal(transaction.id)
@@ -231,8 +262,11 @@ test.describe('Transaction Edit - Basic Flow', () => {
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
-    const currentVersion = transaction.version || 1
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
+    const currentVersion = transaction.version
 
     // Open edit modal
     await editPage.openEditModal(transaction.id)
@@ -257,7 +291,10 @@ test.describe('Transaction Edit - Basic Flow', () => {
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     // Open edit modal
     await editPage.openEditModal(transaction.id)
@@ -275,10 +312,15 @@ test.describe('Transaction Edit - Basic Flow', () => {
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     // Check body overflow before opening modal
-    const bodyOverflowBefore = await page.evaluate(() => document.body.style.overflow)
+    const bodyOverflowBefore = await page.evaluate(
+      () => document.body.style.overflow
+    )
     expect(bodyOverflowBefore).not.toBe('hidden')
 
     // Open edit modal
@@ -295,7 +337,9 @@ test.describe('Transaction Edit - Basic Flow', () => {
     await editPage.waitForClose()
 
     // Check body overflow is restored
-    const bodyOverflowAfter = await page.evaluate(() => document.body.style.overflow)
+    const bodyOverflowAfter = await page.evaluate(
+      () => document.body.style.overflow
+    )
     expect(bodyOverflowAfter).not.toBe('hidden')
   })
 })

@@ -1,5 +1,5 @@
-import { test, expect } from './fixtures/auth.fixture'
-import { SAMPLE_TRANSACTIONS } from './fixtures/transaction.fixture'
+import { test, expect, getTransaction } from './fixtures/auth.fixture'
+import { TRANSACTION_INDEX } from './fixtures/transaction.fixture'
 import { TransactionEditPage } from './helpers/transaction-edit.helper'
 
 /**
@@ -11,7 +11,10 @@ import { TransactionEditPage } from './helpers/transaction-edit.helper'
 test.describe('Transaction Edit - Validation', () => {
   test('should require memo field', async ({ page, testContext }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     await editPage.openEditModal(transaction.id)
 
@@ -32,7 +35,10 @@ test.describe('Transaction Edit - Validation', () => {
 
   test('should require amount field', async ({ page, testContext }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     await editPage.openEditModal(transaction.id)
 
@@ -55,7 +61,10 @@ test.describe('Transaction Edit - Validation', () => {
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     await editPage.openEditModal(transaction.id)
 
@@ -73,9 +82,15 @@ test.describe('Transaction Edit - Validation', () => {
     await expect(editPage.modal).toBeVisible()
   })
 
-  test('should require amount to be negative', async ({ page, testContext }) => {
+  test('should require amount to be negative', async ({
+    page,
+    testContext,
+  }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     await editPage.openEditModal(transaction.id)
 
@@ -93,9 +108,15 @@ test.describe('Transaction Edit - Validation', () => {
     await expect(editPage.modal).toBeVisible()
   })
 
-  test('should validate amount decimal format', async ({ page, testContext }) => {
+  test('should validate amount decimal format', async ({
+    page,
+    testContext,
+  }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     await editPage.openEditModal(transaction.id)
 
@@ -117,7 +138,10 @@ test.describe('Transaction Edit - Validation', () => {
 
   test('should require date field', async ({ page, testContext }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     await editPage.openEditModal(transaction.id)
 
@@ -137,7 +161,10 @@ test.describe('Transaction Edit - Validation', () => {
 
   test('should validate date format', async ({ page, testContext }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     await editPage.openEditModal(transaction.id)
 
@@ -160,7 +187,10 @@ test.describe('Transaction Edit - Validation', () => {
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     await editPage.openEditModal(transaction.id)
 
@@ -175,9 +205,10 @@ test.describe('Transaction Edit - Validation', () => {
     await editPage.save()
 
     // Check if future dates are allowed (business rule dependent)
-    const error = await editPage.getValidationError('date')
     // This test should match your actual business rules
     // Some apps allow future dates, some don't
+    // Verify we can at least check for validation errors (no crash)
+    await editPage.getValidationError('date')
   })
 
   test('should display multiple validation errors simultaneously', async ({
@@ -185,7 +216,10 @@ test.describe('Transaction Edit - Validation', () => {
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     await editPage.openEditModal(transaction.id)
 
@@ -216,7 +250,10 @@ test.describe('Transaction Edit - Validation', () => {
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     await editPage.openEditModal(transaction.id)
 
@@ -245,14 +282,10 @@ test.describe('Transaction Edit - Authorization & Business Rules', () => {
     testContext,
   }) => {
     const editPage = new TransactionEditPage(page)
-    const reconciledTransaction = SAMPLE_TRANSACTIONS.find(
-      (t) => t.status === 'RECONCILED'
+    const reconciledTransaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.RECONCILED
     )
-
-    if (!reconciledTransaction) {
-      test.skip('No reconciled transaction available for testing')
-      return
-    }
 
     // Attempt to open edit modal
     await editPage.openEditModal(reconciledTransaction.id)
@@ -284,9 +317,15 @@ test.describe('Transaction Edit - Authorization & Business Rules', () => {
     }
   })
 
-  test('should display warning for stale data', async ({ page, testContext }) => {
+  test('should display warning for stale data', async ({
+    page,
+    testContext,
+  }) => {
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     await editPage.openEditModal(transaction.id)
 
@@ -321,7 +360,10 @@ test.describe('Transaction Edit - Authorization & Business Rules', () => {
     // Or: Edit modal should show but Save button disabled
 
     const editPage = new TransactionEditPage(page)
-    const transaction = SAMPLE_TRANSACTIONS[0]
+    const transaction = getTransaction(
+      testContext.testData,
+      TRANSACTION_INDEX.GROCERY
+    )
 
     // Check if Edit button is available based on permissions
     const editButton = page.locator(
@@ -337,7 +379,7 @@ test.describe('Transaction Edit - Authorization & Business Rules', () => {
     } else {
       // User doesn't have permission
       // Edit button should not be visible or should be disabled
-      if (await editButton.count() > 0) {
+      if ((await editButton.count()) > 0) {
         await expect(editButton).toBeDisabled()
       }
     }

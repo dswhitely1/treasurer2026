@@ -1,4 +1,4 @@
-import { chromium, FullConfig } from '@playwright/test'
+import { chromium, type FullConfig } from '@playwright/test'
 
 /**
  * Global setup for Playwright E2E tests.
@@ -12,7 +12,9 @@ import { chromium, FullConfig } from '@playwright/test'
 async function globalSetup(config: FullConfig) {
   console.log('🚀 Starting E2E test suite setup...')
 
-  const baseURL = config.use?.baseURL || 'http://localhost:3000'
+  // Extract baseURL from first project's use config, or fall back to default
+  const projectUse = config.projects[0]?.use as { baseURL?: string } | undefined
+  const baseURL = projectUse?.baseURL ?? 'http://localhost:3000'
 
   // Verify that the frontend and backend are running
   const browser = await chromium.launch()
